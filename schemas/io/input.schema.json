@@ -1,12 +1,65 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "component-llm-openai handle input",
+  "title": "component-llm-openai invocation input",
   "type": "object",
   "required": ["input"],
   "properties": {
+    "config": {
+      "$ref": "../component.schema.json",
+      "description": "Optional per-invocation configuration override."
+    },
     "input": {
-      "type": "string",
-      "description": "Opaque payload forwarded to handle"
+      "$ref": "#/$defs/LlmOpenaiRequest"
+    }
+  },
+  "$defs": {
+    "ChatMessage": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Message role (system|user|assistant|tool|etc.)"
+        },
+        "content": {
+          "type": "string",
+          "description": "Message body"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LlmOpenaiRequest": {
+      "type": "object",
+      "required": ["messages"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Optional override of the model for this call."
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          },
+          "minItems": 1
+        },
+        "temperature": {
+          "type": "number"
+        },
+        "top_p": {
+          "type": "number"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "extra": {
+          "type": "object",
+          "description": "Provider-specific options merged into the outgoing payload.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

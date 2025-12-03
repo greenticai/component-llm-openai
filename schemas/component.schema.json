@@ -4,11 +4,60 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "echo_prefix": {
+    "provider": {
       "type": "string",
-      "description": "Prefix prepended to every handle response",
-      "default": "component-llm-openai",
-      "x-default-applied": true
+      "description": "Provider to talk to. Defaults to openai.",
+      "enum": ["openai", "ollama", "openrouter", "together", "custom"],
+      "default": "openai"
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Optional override of the base URL. Required for provider=custom."
+    },
+    "api_key_secret": {
+      "type": "string",
+      "description": "Secret key name resolved via greentic-secrets. Required for OpenAI, OpenRouter, Together."
+    },
+    "default_model": {
+      "type": "string",
+      "description": "Optional default model for this component instance."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional request timeout in milliseconds if supported by the host HTTP client."
     }
-  }
+  },
+  "default": {
+    "provider": "openai",
+    "base_url": null,
+    "api_key_secret": null,
+    "default_model": null,
+    "timeout_ms": null
+  },
+  "required": [],
+  "x-capabilities": {
+    "host": {
+      "http": true,
+      "secrets": true
+    }
+  },
+  "examples": [
+    {
+      "provider": "openai",
+      "api_key_secret": "OPENAI_API_KEY",
+      "default_model": "gpt-4.1-mini"
+    },
+    {
+      "provider": "ollama",
+      "base_url": "http://localhost:11434/v1",
+      "default_model": "llama3:8b"
+    },
+    {
+      "provider": "custom",
+      "base_url": "https://my-gateway/v1",
+      "api_key_secret": "CUSTOM_KEY",
+      "default_model": "gpt-4.1-mini"
+    }
+  ]
 }
