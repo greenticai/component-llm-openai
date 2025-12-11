@@ -53,52 +53,52 @@ mod exports {
     use super::component::Component;
     use greentic_interfaces_guest::component::node;
 
-    #[unsafe(export_name = "greentic:component/node@0.4.0#get-manifest")]
+    #[unsafe(export_name = "greentic:component/node@0.5.0#get-manifest")]
     unsafe extern "C" fn export_get_manifest() -> *mut u8 {
         unsafe { node::_export_get_manifest_cabi::<Component>() }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.4.0#get-manifest")]
+    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#get-manifest")]
     unsafe extern "C" fn post_return_get_manifest(arg0: *mut u8) {
         unsafe { node::__post_return_get_manifest::<Component>(arg0) };
     }
 
-    #[unsafe(export_name = "greentic:component/node@0.4.0#on-start")]
+    #[unsafe(export_name = "greentic:component/node@0.5.0#on-start")]
     unsafe extern "C" fn export_on_start(arg0: *mut u8) -> *mut u8 {
         unsafe { node::_export_on_start_cabi::<Component>(arg0) }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.4.0#on-start")]
+    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#on-start")]
     unsafe extern "C" fn post_return_on_start(arg0: *mut u8) {
         unsafe { node::__post_return_on_start::<Component>(arg0) };
     }
 
-    #[unsafe(export_name = "greentic:component/node@0.4.0#on-stop")]
+    #[unsafe(export_name = "greentic:component/node@0.5.0#on-stop")]
     unsafe extern "C" fn export_on_stop(arg0: *mut u8) -> *mut u8 {
         unsafe { node::_export_on_stop_cabi::<Component>(arg0) }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.4.0#on-stop")]
+    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#on-stop")]
     unsafe extern "C" fn post_return_on_stop(arg0: *mut u8) {
         unsafe { node::__post_return_on_stop::<Component>(arg0) };
     }
 
-    #[unsafe(export_name = "greentic:component/node@0.4.0#invoke")]
+    #[unsafe(export_name = "greentic:component/node@0.5.0#invoke")]
     unsafe extern "C" fn export_invoke(arg0: *mut u8) -> *mut u8 {
         unsafe { node::_export_invoke_cabi::<Component>(arg0) }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.4.0#invoke")]
+    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#invoke")]
     unsafe extern "C" fn post_return_invoke(arg0: *mut u8) {
         unsafe { node::__post_return_invoke::<Component>(arg0) };
     }
 
-    #[unsafe(export_name = "greentic:component/node@0.4.0#invoke-stream")]
+    #[unsafe(export_name = "greentic:component/node@0.5.0#invoke-stream")]
     unsafe extern "C" fn export_invoke_stream(arg0: *mut u8) -> *mut u8 {
         unsafe { node::_export_invoke_stream_cabi::<Component>(arg0) }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.4.0#invoke-stream")]
+    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#invoke-stream")]
     unsafe extern "C" fn post_return_invoke_stream(arg0: *mut u8) {
         unsafe { node::__post_return_invoke_stream::<Component>(arg0) };
     }
@@ -490,7 +490,7 @@ pub fn describe_payload() -> String {
             "name": "component-llm-openai",
             "org": "ai.greentic",
             "version": "0.1.0",
-            "world": "greentic:component/component@0.4.0",
+            "world": "greentic:component/component@0.5.0",
             "schemas": {
                 "component": "schemas/component.schema.json",
                 "input": "schemas/io/input.schema.json",

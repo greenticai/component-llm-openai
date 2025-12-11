@@ -6,7 +6,7 @@ fn describe_mentions_world() {
     let json: serde_json::Value = serde_json::from_str(&payload).expect("describe should be json");
     assert_eq!(
         json["component"]["world"],
-        "greentic:component/component@0.4.0"
+        "greentic:component/component@0.5.0"
     );
 }
 

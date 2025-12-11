@@ -1,0 +1,49 @@
+id: ai.greentic.component-llm-openai.custom
+kind: component-config
+description: Auto-generated custom config for ai.greentic.component-llm-openai
+nodes:
+  ask_config:
+    questions:
+      fields:
+      - id: api_key_secret
+        prompt: Secret key name resolved via greentic-secrets. Required for OpenAI, OpenRouter, Together.
+        type: string
+      - id: base_url
+        prompt: Optional override of the base URL. Required for provider=custom.
+        type: string
+      - id: default_model
+        prompt: Optional default model for this component instance.
+        type: string
+      - id: provider
+        prompt: Provider to talk to. Defaults to openai.
+        type: enum
+        options:
+        - openai
+        - ollama
+        - openrouter
+        - together
+        - custom
+        default: openai
+      - id: timeout_ms
+        prompt: Optional request timeout in milliseconds if supported by the host HTTP client.
+        type: number
+    routing:
+    - to: emit_config
+  emit_config:
+    template: |-
+      {
+        "node_id": "COMPONENT_STEP",
+        "node": {
+          "tool": {
+            "component": "ai.greentic.component-llm-openai",
+            "api_key_secret": "{{state.api_key_secret}}",
+            "base_url": "{{state.base_url}}",
+            "default_model": "{{state.default_model}}",
+            "provider": "{{state.provider}}",
+            "timeout_ms": {{state.timeout_ms}}
+          },
+          "routing": [
+            { "to": "NEXT_NODE_PLACEHOLDER" }
+          ]
+        }
+      }
