@@ -1,7 +1,7 @@
 {
   "step": 4,
   "line_no": 48,
-  "command": "greentic-flow new --flow /tmp/gtest-saRBrC/pack/flows/main.ygtc --id ai.greentic.component-llm-openai.gtest --type messaging --name component-llm-openai gtest --description Wizard add-step smoke test --force",
+  "command": "greentic-flow new --flow /tmp/gtest-wsqxQj/pack/flows/main.ygtc --id ai.greentic.component-llm-openai.gtest --type messaging --name component-llm-openai gtest --description Wizard add-step smoke test --force",
   "exit_code": 0,
-  "duration_ms": 39
+  "duration_ms": 6
 }

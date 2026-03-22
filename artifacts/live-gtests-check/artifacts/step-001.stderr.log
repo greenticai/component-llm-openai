@@ -1,0 +1,8 @@
+   Compiling component-llm-openai v0.1.3 (/projects/ai/greentic-ng/component-llm-openai)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
+     Running tests/live_provider.rs (/projects/ai/greentic-ng/component-llm-openai/target/debug/deps/live_provider-b8a29277e3c93de6)
+
+thread 'live_provider_roundtrip' (117) panicked at tests/live_provider.rs:211:51:
+live provider invocation should succeed: ComponentError { code: "http-request-failed", message: "live provider call failed: error sending request for url (http://localhost:11434/v1/chat/completions): error trying to connect: tcp open error: Operation not permitted (os error 1)", retryable: true, backoff_ms: None, details: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `--test live_provider`

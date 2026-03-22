@@ -3,5 +3,5 @@
   "line_no": 15,
   "command": "cargo test qa::tests::update_mode_starts_with_update_area_and_is_selective -- --exact",
   "exit_code": 0,
-  "duration_ms": 411
+  "duration_ms": 233
 }

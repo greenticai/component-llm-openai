@@ -3,5 +3,5 @@
   "line_no": 5,
   "command": "cargo test describe_mentions_world --test conformance -- --exact",
   "exit_code": 0,
-  "duration_ms": 266
+  "duration_ms": 344
 }

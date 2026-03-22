@@ -1,5 +1,5 @@
    Compiling component-llm-openai v0.1.3 (/projects/ai/greentic-ng/component-llm-openai)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.95s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.43s
      Running unittests src/lib.rs (target/debug/deps/component_llm_openai-de6ede25d8332744)
      Running unittests src/bin/export_wizard_fixture.rs (target/debug/deps/export_wizard_fixture-fc02fd24f6169fc0)
      Running tests/conformance.rs (target/debug/deps/conformance-8fa9b407103ce79b)

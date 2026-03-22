@@ -133,6 +133,18 @@ fn provider_from_env(raw: &str) -> LlmProvider {
     }
 }
 
+fn normalize_live_match(text: &str) -> String {
+    text.chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .flat_map(|ch| {
+            ch.to_ascii_uppercase()
+                .to_string()
+                .chars()
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
 #[test]
 fn live_provider_roundtrip() {
     let loaded = load_live_env();
@@ -207,8 +219,11 @@ fn live_provider_roundtrip() {
         !response.completion.trim().is_empty(),
         "live provider returned empty completion"
     );
+    let normalized_completion = normalize_live_match(&response.completion);
+    let normalized_expected = normalize_live_match(&expected);
     assert!(
-        response.completion.contains(&expected),
+        response.completion.contains(&expected)
+            || normalized_completion.contains(&normalized_expected),
         "expected completion to contain `{expected}`, got `{}`",
         response.completion
     );

@@ -19,8 +19,11 @@ fi
 set -a
 . "${repo_root}/.secrets"
 set +a
-cargo test --manifest-path "${repo_root}/Cargo.toml" live_provider_roundtrip --test live_provider -- --exact
+mkdir -p "${repo_root}/artifacts/live-gtests/01_live_provider"
+cargo test --manifest-path "${repo_root}/Cargo.toml" live_provider_roundtrip --test live_provider -- --exact --nocapture \
+  2>&1 | tee "${repo_root}/artifacts/live-gtests/01_live_provider/cargo-test.log"
 EOF
 #RUN bash ${SCRIPT} ${REPO_ROOT}
 #EXPECT_EXIT 0
 #SAVE_ARTIFACT ${SCRIPT}
+#SAVE_ARTIFACT ${REPO_ROOT}/artifacts/live-gtests/01_live_provider/cargo-test.log

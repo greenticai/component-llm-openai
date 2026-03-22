@@ -15,20 +15,20 @@ meta:
     components:
       llm_default:
         abi_version: 0.6.0
-        added_at: 1774184544
+        added_at: 1774185968
         component_id: repo://local/component-llm-openai
         exported_ops_seen:
         - describe
         - invoke
-        updated_at: 1774184544
+        updated_at: 1774185968
       llm_personalized:
         abi_version: 0.6.0
-        added_at: 1774184544
+        added_at: 1774185968
         component_id: repo://local/component-llm-openai
         exported_ops_seen:
         - describe
         - invoke
-        updated_at: 1774184544
+        updated_at: 1774185968
     secrets_hints:
       llm_default: []
       llm_personalized: []
