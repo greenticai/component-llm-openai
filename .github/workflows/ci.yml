@@ -99,16 +99,34 @@ jobs:
           cache-on-failure: true
           workspaces: |
             . -> target
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@main
+      - name: Restore cargo binaries cache
+        uses: actions/cache/restore@v4
         with:
-          version: "1.17.8"
-      - name: Install gtc
-        run: cargo binstall --no-confirm --version 1.0.0-alpha1 gtc
-      - name: Bootstrap Greentic tools
-        run: gtc install
-      - name: Install greentic-integration-tester
-        run: cargo binstall --no-confirm greentic-integration-tester
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-bins-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bins-
+      - name: Install cargo-binstall
+        run: |
+          if ! command -v cargo-binstall >/dev/null 2>&1; then
+            cargo install cargo-binstall --locked
+          fi
+      - name: Install Greentic CLIs
+        run: |
+          cargo binstall -y greentic-dev greentic-flow greentic-integration-tester
+          cargo binstall -y greentic-component --force
+      - name: Save cargo binaries cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-bins-${{ hashFiles('**/Cargo.lock') }}
       - name: Run static gtests
         run: |
           mkdir -p artifacts/readme-gtests artifacts/negative-gtests
