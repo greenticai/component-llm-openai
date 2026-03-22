@@ -7,12 +7,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo_root="$1"
-set -a
-if [ -f "${repo_root}/.secrets" ]; then
-  . "${repo_root}/.secrets"
+if [ ! -f "${repo_root}/.secrets" ]; then
+  echo "No ${repo_root}/.secrets file found."
+  echo "Set up the live test first:"
+  echo "  cp .secrets.sample .secrets"
+  echo "  ollama serve"
+  echo "  ollama pull llama3:8b"
+  echo "Then rerun: greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --errors"
+  exit 0
 fi
+set -a
+. "${repo_root}/.secrets"
 set +a
-cargo test --manifest-path "${repo_root}/Cargo.toml" live_provider_roundtrip --test live_provider -- --ignored --exact
+cargo test --manifest-path "${repo_root}/Cargo.toml" live_provider_roundtrip --test live_provider -- --exact
 EOF
 #RUN bash ${SCRIPT} ${REPO_ROOT}
 #EXPECT_EXIT 0

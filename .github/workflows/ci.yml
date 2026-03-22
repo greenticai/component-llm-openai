@@ -35,8 +35,8 @@ jobs:
       - name: Run static gtests
         run: |
           mkdir -p artifacts/readme-gtests artifacts/negative-gtests
-          greentic-integration-tester run --gtest tests/gtests/README --artifacts-dir artifacts/readme-gtests --errors
-          greentic-integration-tester run --gtest tests/gtests/negative/smoke --artifacts-dir artifacts/negative-gtests --errors
+          greentic-integration-tester run --gtest tests/gtests/README --artifacts-dir artifacts/readme-gtests --trace-out artifacts/readme-gtests/trace.json --errors
+          greentic-integration-tester run --gtest tests/gtests/negative/smoke --artifacts-dir artifacts/negative-gtests --trace-out artifacts/negative-gtests/trace.json --errors
       - name: Prepare live-provider secrets
         run: |
           : "${CI_LIVE_LLM_PROVIDER:=openai}"
@@ -54,4 +54,14 @@ jobs:
         if: ${{ env.CI_OPENAI_API_KEY != '' }}
         run: |
           mkdir -p artifacts/live-gtests
-          greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --errors
+          greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --trace-out artifacts/live-gtests/trace.json --errors
+      - name: Upload gtest artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtest-artifacts
+          path: |
+            artifacts/readme-gtests
+            artifacts/negative-gtests
+            artifacts/live-gtests
+          if-no-files-found: ignore

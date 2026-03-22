@@ -190,13 +190,15 @@ ollama pull llama3:8b
 greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --errors
 ```
 
+If `.secrets` is missing, the live gtest now exits cleanly and prints the setup steps instead of failing with an unhelpful ignored-test message.
+
 If you prefer, you can also source the same settings manually before running the Rust test directly:
 
 ```bash
 set -a
 . ./.secrets
 set +a
-cargo test live_provider_roundtrip --test live_provider -- --ignored --exact
+cargo test live_provider_roundtrip --test live_provider -- --exact
 ```
 
 `.secrets` is gitignored and should stay local-only.

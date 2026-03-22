@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use component_llm_openai::{
@@ -61,8 +62,64 @@ impl Host for LiveHttpHost {
     }
 }
 
-fn env_or_default(key: &str, default: &str) -> String {
-    std::env::var(key).unwrap_or_else(|_| default.to_string())
+fn find_secrets_file() -> Option<PathBuf> {
+    let current = std::env::current_dir().ok()?.join(".secrets");
+    if current.is_file() {
+        return Some(current);
+    }
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(".secrets");
+    if manifest_dir.is_file() {
+        return Some(manifest_dir);
+    }
+
+    None
+}
+
+fn parse_secrets_file(path: &Path) -> HashMap<String, String> {
+    let mut values = HashMap::new();
+    let Ok(contents) = std::fs::read_to_string(path) else {
+        return values;
+    };
+
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        let Some((key, raw_value)) = trimmed.split_once('=') else {
+            continue;
+        };
+        let mut value = raw_value.trim().to_string();
+        if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+            value = value[1..value.len() - 1].to_string();
+        }
+        values.insert(key.trim().to_string(), value);
+    }
+
+    values
+}
+
+fn load_live_env() -> Option<HashMap<String, String>> {
+    let path = find_secrets_file()?;
+    Some(parse_secrets_file(&path))
+}
+
+fn env_or_loaded(
+    key: &str,
+    loaded: Option<&HashMap<String, String>>,
+    default: Option<&str>,
+) -> Option<String> {
+    if let Ok(value) = std::env::var(key) {
+        return Some(value);
+    }
+
+    if let Some(value) = loaded.and_then(|values| values.get(key)).cloned() {
+        return Some(value);
+    }
+
+    default.map(ToString::to_string)
 }
 
 fn provider_from_env(raw: &str) -> LlmProvider {
@@ -77,19 +134,38 @@ fn provider_from_env(raw: &str) -> LlmProvider {
 }
 
 #[test]
-#[ignore = "requires a reachable live LLM endpoint configured via env or .secrets"]
 fn live_provider_roundtrip() {
-    let provider = provider_from_env(&env_or_default("LIVE_LLM_PROVIDER", "ollama"));
-    let base_url = std::env::var("LIVE_LLM_BASE_URL").ok();
-    let default_model = std::env::var("LIVE_LLM_MODEL").ok();
-    let live_api_key = std::env::var("LIVE_LLM_API_KEY")
-        .ok()
-        .filter(|value| !value.trim().is_empty());
-    let prompt = env_or_default(
-        "LIVE_LLM_PROMPT",
-        "Respond with exactly the text PONG_TEST_42 and nothing else.",
+    let loaded = load_live_env();
+    if loaded.is_none() && std::env::var("LIVE_LLM_PROVIDER").is_err() {
+        eprintln!("No .secrets file or LIVE_LLM_* environment found for live_provider_roundtrip.");
+        eprintln!("Set up the live test first:");
+        eprintln!("  cp .secrets.sample .secrets");
+        eprintln!("  ollama serve");
+        eprintln!("  ollama pull llama3:8b");
+        eprintln!("Then rerun: cargo test live_provider_roundtrip --test live_provider -- --exact");
+        return;
+    }
+
+    let provider = provider_from_env(
+        &env_or_loaded("LIVE_LLM_PROVIDER", loaded.as_ref(), Some("ollama"))
+            .expect("provider default should always be available"),
     );
-    let expected = env_or_default("LIVE_LLM_EXPECT_CONTAINS", "PONG_TEST_42");
+    let base_url = env_or_loaded("LIVE_LLM_BASE_URL", loaded.as_ref(), None);
+    let default_model = env_or_loaded("LIVE_LLM_MODEL", loaded.as_ref(), None);
+    let live_api_key = env_or_loaded("LIVE_LLM_API_KEY", loaded.as_ref(), None)
+        .filter(|value| !value.trim().is_empty());
+    let prompt = env_or_loaded(
+        "LIVE_LLM_PROMPT",
+        loaded.as_ref(),
+        Some("Respond with exactly the text PONG_TEST_42 and nothing else."),
+    )
+    .expect("prompt default should always be available");
+    let expected = env_or_loaded(
+        "LIVE_LLM_EXPECT_CONTAINS",
+        loaded.as_ref(),
+        Some("PONG_TEST_42"),
+    )
+    .expect("expected default should always be available");
 
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(60))
