@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 6,
+  "command": "bash -lc greentic-component build --manifest /projects/ai/greentic-ng/component-llm-openai/component.manifest.json --no-flow --json | python3 -c \"import sys, json; data=sys.stdin.read(); start=data.rfind(\\\"{\\\"); print(data[start:]); json.loads(data[start:])\"",
+  "exit_code": 0,
+  "duration_ms": 1522
+}

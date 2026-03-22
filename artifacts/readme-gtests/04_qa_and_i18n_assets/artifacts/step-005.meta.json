@@ -1,0 +1,7 @@
+{
+  "step": 5,
+  "line_no": 13,
+  "command": "cargo test qa::tests::setup_mode_includes_endpoint_auth_model_and_timeout -- --exact",
+  "exit_code": 0,
+  "duration_ms": 113
+}

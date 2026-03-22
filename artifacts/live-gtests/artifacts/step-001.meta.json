@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 17,
+  "command": "bash /tmp/gtest-kQqU5e/run_live_provider.sh /projects/ai/greentic-ng/component-llm-openai",
+  "exit_code": 0,
+  "duration_ms": 1710
+}

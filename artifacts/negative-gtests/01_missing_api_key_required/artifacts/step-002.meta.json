@@ -1,0 +1,7 @@
+{
+  "step": 2,
+  "line_no": 7,
+  "command": "cargo test tests::generated_schema_describes_secret_reference_and_model_precedence -- --exact",
+  "exit_code": 0,
+  "duration_ms": 109
+}

@@ -1,0 +1,10 @@
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests/02_custom_requires_base_url
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests/02_custom_requires_base_url/artifacts
+#RUN cargo test tests::custom_requires_base_url -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::default_apply_answers_for_custom_requires_model_and_base_url -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::remove_mode_requires_confirmation -- --exact
+#EXPECT_EXIT 0

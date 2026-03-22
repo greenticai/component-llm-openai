@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 5,
+  "command": "test -x /projects/ai/greentic-ng/component-llm-openai/tools/i18n.sh",
+  "exit_code": 0,
+  "duration_ms": 2
+}

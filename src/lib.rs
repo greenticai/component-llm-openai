@@ -1,7 +1,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
+mod i18n;
+mod i18n_bundle;
+mod qa;
+
 const CHAT_COMPLETIONS_PATH: &str = "/chat/completions";
+const COMPONENT_NAME: &str = "component-llm-openai";
+const COMPONENT_ID: &str = "ai.greentic.component-llm-openai";
+const COMPONENT_VERSION: &str = "0.1.0";
+const COMPONENT_WORLD: &str = "greentic:component/component@0.6.0";
+const DEFAULT_OPERATION: &str = "handle_message";
 
 #[cfg(target_arch = "wasm32")]
 #[used]
@@ -10,99 +19,141 @@ static WASI_TARGET_MARKER: [u8; 13] = *b"wasm32-wasip2";
 
 #[cfg(target_arch = "wasm32")]
 mod component {
-    use greentic_interfaces_guest::component::node::{
-        self, ExecCtx, InvokeResult, LifecycleStatus, StreamEvent,
-    };
+    use greentic_interfaces_guest::component_v0_6::node;
+    use serde_json::Value;
 
     use super::{
-        GuestHost, TenantContext, describe_payload, handle_invocation, handle_invocation_stream,
+        DEFAULT_OPERATION, GuestHost, TenantContext, component_descriptor, encode_cbor,
+        handle_invocation, parse_payload,
     };
 
     pub(super) struct Component;
 
     impl node::Guest for Component {
-        fn get_manifest() -> String {
-            describe_payload()
+        fn describe() -> node::ComponentDescriptor {
+            component_descriptor()
         }
 
-        fn on_start(_ctx: ExecCtx) -> Result<LifecycleStatus, String> {
-            Ok(LifecycleStatus::Ok)
-        }
-
-        fn on_stop(_ctx: ExecCtx, _reason: String) -> Result<LifecycleStatus, String> {
-            Ok(LifecycleStatus::Ok)
-        }
-
-        fn invoke(ctx: ExecCtx, op: String, input: String) -> InvokeResult {
-            let tenant = TenantContext::from(&ctx);
-            match handle_invocation(&op, &input, &GuestHost, Some(&tenant)) {
-                Ok(output) => InvokeResult::Ok(output),
-                Err(err) => InvokeResult::Err(err.into_node_error()),
-            }
-        }
-
-        fn invoke_stream(ctx: ExecCtx, op: String, input: String) -> Vec<StreamEvent> {
-            let tenant = TenantContext::from(&ctx);
-            handle_invocation_stream(&op, &input, &GuestHost, Some(&tenant))
+        fn invoke(
+            op: String,
+            envelope: node::InvocationEnvelope,
+        ) -> Result<node::InvocationResult, node::NodeError> {
+            let tenant = TenantContext::from(&envelope.ctx);
+            let operation = if op.is_empty() {
+                DEFAULT_OPERATION
+            } else {
+                &op
+            };
+            let output_value = match operation {
+                "qa-spec" => super::qa_spec_value(&parse_payload(&envelope.payload_cbor))?,
+                "apply-answers" | "setup.apply_answers" => {
+                    super::apply_answers_value(&parse_payload(&envelope.payload_cbor))?
+                }
+                "i18n-keys" => Value::Array(
+                    super::qa::i18n_keys()
+                        .into_iter()
+                        .map(Value::String)
+                        .collect(),
+                ),
+                _ => {
+                    let input = super::parse_payload_to_json_string(&envelope.payload_cbor)
+                        .map_err(|err| err.into_node_error())?;
+                    let output = handle_invocation(operation, &input, &GuestHost, Some(&tenant))
+                        .map_err(|err| err.into_node_error())?;
+                    serde_json::from_str::<Value>(&output).map_err(|err| {
+                        super::ComponentError::new(
+                            "serialization-failed",
+                            format!("failed to parse component output as JSON: {err}"),
+                        )
+                        .into_node_error()
+                    })?
+                }
+            };
+            Ok(node::InvocationResult {
+                ok: true,
+                output_cbor: encode_cbor(&output_value).map_err(|err| err.into_node_error())?,
+                output_metadata_cbor: None,
+            })
         }
     }
 }
 
 #[cfg(target_arch = "wasm32")]
-mod exports {
-    use super::component::Component;
-    use greentic_interfaces_guest::component::node;
+mod qa_exports {
+    use crate::qa::WizardMode;
+    use serde_json::Value;
 
-    #[unsafe(export_name = "greentic:component/node@0.5.0#get-manifest")]
-    unsafe extern "C" fn export_get_manifest() -> *mut u8 {
-        unsafe { node::_export_get_manifest_cabi::<Component>() }
+    wit_bindgen::generate!({
+        inline: r#"
+            package greentic:component@0.6.0;
+
+            interface component-qa {
+                enum qa-mode {
+                    default,
+                    setup,
+                    update,
+                    remove
+                }
+
+                qa-spec: func(mode: qa-mode) -> list<u8>;
+                apply-answers: func(mode: qa-mode, current-config: list<u8>, answers: list<u8>) -> list<u8>;
+            }
+
+            interface component-i18n {
+                i18n-keys: func() -> list<string>;
+            }
+
+            world wizard-support {
+                export component-qa;
+                export component-i18n;
+            }
+        "#,
+        world: "wizard-support",
+    });
+
+    pub struct WizardSupport;
+
+    impl exports::greentic::component::component_qa::Guest for WizardSupport {
+        fn qa_spec(mode: exports::greentic::component::component_qa::QaMode) -> Vec<u8> {
+            let mode = match mode {
+                exports::greentic::component::component_qa::QaMode::Default => WizardMode::Default,
+                exports::greentic::component::component_qa::QaMode::Setup => WizardMode::Setup,
+                exports::greentic::component::component_qa::QaMode::Update => WizardMode::Update,
+                exports::greentic::component::component_qa::QaMode::Remove => WizardMode::Remove,
+            };
+            crate::encode_cbor(&crate::qa::qa_spec(mode)).expect("encode qa spec")
+        }
+
+        fn apply_answers(
+            mode: exports::greentic::component::component_qa::QaMode,
+            current_config: Vec<u8>,
+            answers: Vec<u8>,
+        ) -> Vec<u8> {
+            let mode = match mode {
+                exports::greentic::component::component_qa::QaMode::Default => WizardMode::Default,
+                exports::greentic::component::component_qa::QaMode::Setup => WizardMode::Setup,
+                exports::greentic::component::component_qa::QaMode::Update => WizardMode::Update,
+                exports::greentic::component::component_qa::QaMode::Remove => WizardMode::Remove,
+            };
+            let current = crate::parse_payload(&current_config);
+            let answers = crate::parse_payload(&answers);
+            let value = crate::qa::apply_answers(mode, Some(&current), Some(&answers))
+                .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
+            crate::encode_cbor(&value).expect("encode wizard answers result")
+        }
     }
 
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#get-manifest")]
-    unsafe extern "C" fn post_return_get_manifest(arg0: *mut u8) {
-        unsafe { node::__post_return_get_manifest::<Component>(arg0) };
+    impl exports::greentic::component::component_i18n::Guest for WizardSupport {
+        fn i18n_keys() -> Vec<String> {
+            crate::qa::i18n_keys()
+        }
     }
 
-    #[unsafe(export_name = "greentic:component/node@0.5.0#on-start")]
-    unsafe extern "C" fn export_on_start(arg0: *mut u8) -> *mut u8 {
-        unsafe { node::_export_on_start_cabi::<Component>(arg0) }
-    }
-
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#on-start")]
-    unsafe extern "C" fn post_return_on_start(arg0: *mut u8) {
-        unsafe { node::__post_return_on_start::<Component>(arg0) };
-    }
-
-    #[unsafe(export_name = "greentic:component/node@0.5.0#on-stop")]
-    unsafe extern "C" fn export_on_stop(arg0: *mut u8) -> *mut u8 {
-        unsafe { node::_export_on_stop_cabi::<Component>(arg0) }
-    }
-
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#on-stop")]
-    unsafe extern "C" fn post_return_on_stop(arg0: *mut u8) {
-        unsafe { node::__post_return_on_stop::<Component>(arg0) };
-    }
-
-    #[unsafe(export_name = "greentic:component/node@0.5.0#invoke")]
-    unsafe extern "C" fn export_invoke(arg0: *mut u8) -> *mut u8 {
-        unsafe { node::_export_invoke_cabi::<Component>(arg0) }
-    }
-
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#invoke")]
-    unsafe extern "C" fn post_return_invoke(arg0: *mut u8) {
-        unsafe { node::__post_return_invoke::<Component>(arg0) };
-    }
-
-    #[unsafe(export_name = "greentic:component/node@0.5.0#invoke-stream")]
-    unsafe extern "C" fn export_invoke_stream(arg0: *mut u8) -> *mut u8 {
-        unsafe { node::_export_invoke_stream_cabi::<Component>(arg0) }
-    }
-
-    #[unsafe(export_name = "cabi_post_greentic:component/node@0.5.0#invoke-stream")]
-    unsafe extern "C" fn post_return_invoke_stream(arg0: *mut u8) {
-        unsafe { node::__post_return_invoke_stream::<Component>(arg0) };
-    }
+    export!(WizardSupport with_types_in self);
 }
+
+#[cfg(target_arch = "wasm32")]
+greentic_interfaces_guest::export_component_v060!(component::Component);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
@@ -207,7 +258,7 @@ pub struct ComponentError {
 }
 
 impl ComponentError {
-    fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             code: code.into(),
             message: message.into(),
@@ -217,7 +268,7 @@ impl ComponentError {
         }
     }
 
-    fn retryable(code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn retryable(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             code: code.into(),
             message: message.into(),
@@ -240,13 +291,16 @@ impl ComponentError {
     }
 
     #[cfg(target_arch = "wasm32")]
-    fn into_node_error(self) -> greentic_interfaces_guest::component::node::NodeError {
-        greentic_interfaces_guest::component::node::NodeError {
+    fn into_node_error(self) -> greentic_interfaces_guest::component_v0_6::node::NodeError {
+        let details = self.details.and_then(|val| {
+            greentic_types::cbor::canonical::to_canonical_cbor_allow_floats(&val).ok()
+        });
+        greentic_interfaces_guest::component_v0_6::node::NodeError {
             code: self.code,
             message: self.message,
             retryable: self.retryable,
             backoff_ms: self.backoff_ms,
-            details: self.details.map(|val| val.to_string()),
+            details,
         }
     }
 }
@@ -267,6 +321,8 @@ fn default_model(provider: &LlmProvider) -> &'static str {
         LlmProvider::Ollama => "llama3:8b",
         LlmProvider::Openrouter => "openrouter/auto",
         LlmProvider::Together => "togethercomputer/llama-3-8b-instruct",
+        // Compatibility fallback only. The wizard will ask for a custom model
+        // instead of relying on this.
         LlmProvider::Custom => "gpt-4.1-mini",
     }
 }
@@ -309,17 +365,17 @@ pub struct TenantContext {
 }
 
 #[cfg(target_arch = "wasm32")]
-impl From<&greentic_interfaces_guest::component::node::ExecCtx> for TenantContext {
-    fn from(ctx: &greentic_interfaces_guest::component::node::ExecCtx) -> Self {
+impl From<&greentic_interfaces_guest::component_v0_6::node::TenantCtx> for TenantContext {
+    fn from(ctx: &greentic_interfaces_guest::component_v0_6::node::TenantCtx) -> Self {
         Self {
-            tenant: Some(ctx.tenant.tenant.clone()),
-            team: ctx.tenant.team.clone(),
-            user: ctx.tenant.user.clone(),
-            trace_id: ctx.tenant.trace_id.clone(),
-            correlation_id: ctx.tenant.correlation_id.clone(),
-            deadline_ms: ctx.tenant.deadline_unix_ms,
-            attempt: Some(ctx.tenant.attempt),
-            idempotency_key: ctx.tenant.idempotency_key.clone(),
+            tenant: (!ctx.tenant_id.is_empty()).then(|| ctx.tenant_id.clone()),
+            team: ctx.team_id.clone(),
+            user: ctx.user_id.clone(),
+            trace_id: (!ctx.trace_id.is_empty()).then(|| ctx.trace_id.clone()),
+            correlation_id: (!ctx.correlation_id.is_empty()).then(|| ctx.correlation_id.clone()),
+            deadline_ms: (ctx.deadline_ms != u64::MAX).then_some(ctx.deadline_ms),
+            attempt: Some(ctx.attempt),
+            idempotency_key: ctx.idempotency_key.clone(),
         }
     }
 }
@@ -349,6 +405,7 @@ impl TenantContext {
             deadline_ms: self.deadline_ms.map(|v| v as i64),
             attempt: self.attempt.unwrap_or_default(),
             idempotency_key: self.idempotency_key.clone(),
+            i18n_id: Some(String::new()),
             impersonation: None,
         }
     }
@@ -412,53 +469,20 @@ impl Host for GuestHost {
     }
 
     fn get_secret(&self, name: &str) -> Result<Option<String>, ComponentError> {
-        use greentic_interfaces_guest::bindings::greentic_secrets_1_0_0_store::greentic::secrets::secret_store;
+        use greentic_interfaces_guest::secrets_store;
 
         if name.is_empty() {
             return Ok(None);
         }
 
-        match secret_store::read(name) {
-            Ok(bytes) => Ok(Some(String::from_utf8(bytes).unwrap_or_default())),
+        match secrets_store::get(name) {
+            Ok(Some(bytes)) => Ok(Some(String::from_utf8(bytes).unwrap_or_default())),
+            Ok(None) => Ok(None),
             Err(err) => Err(ComponentError::new(
                 "secret-resolution-failed",
-                format!(
-                    "failed to read secret `{name}`: {} ({})",
-                    err.message, err.code
-                ),
+                format!("failed to read secret `{name}`: {}", err.message()),
             )),
         }
-    }
-}
-
-// Export shim for greentic:secrets/secrets@0.1.0 by delegating to the host secret store.
-#[cfg(target_arch = "wasm32")]
-mod secrets_shim {
-    use greentic_interfaces_guest::bindings::greentic_secrets_0_1_0_host::exports::greentic::secrets::secrets::{
-        Guest, __post_return_get, _export_get_cabi,
-    };
-
-    pub struct SecretsShim;
-
-    impl Guest for SecretsShim {
-        fn get(uri: String) -> Vec<u8> {
-            use greentic_interfaces_guest::bindings::greentic_secrets_1_0_0_store::greentic::secrets::secret_store;
-
-            match secret_store::read(&uri) {
-                Ok(bytes) => bytes,
-                Err(_) => Vec::new(),
-            }
-        }
-    }
-
-    #[unsafe(export_name = "greentic:secrets/secrets@0.1.0#get")]
-    unsafe extern "C" fn export_get(arg0: *mut u8, arg1: usize) -> *mut u8 {
-        unsafe { _export_get_cabi::<SecretsShim>(arg0, arg1) }
-    }
-
-    #[unsafe(export_name = "cabi_post_greentic:secrets/secrets@0.1.0#get")]
-    unsafe extern "C" fn post_return_get(arg0: *mut u8) {
-        unsafe { __post_return_get::<SecretsShim>(arg0) }
     }
 }
 
@@ -487,18 +511,387 @@ impl Host for GuestHost {
 pub fn describe_payload() -> String {
     json!({
         "component": {
-            "name": "component-llm-openai",
+            "name": COMPONENT_NAME,
             "org": "ai.greentic",
-            "version": "0.1.0",
-            "world": "greentic:component/component@0.5.0",
-            "schemas": {
-                "component": "schemas/component.schema.json",
-                "input": "schemas/io/input.schema.json",
-                "output": "schemas/io/output.schema.json"
-            }
+            "id": COMPONENT_ID,
+            "version": COMPONENT_VERSION,
+            "world": COMPONENT_WORLD,
+            "config_schema": component_config_schema_value(),
+            "i18n": i18n_catalog_value(),
+            "default_operation": DEFAULT_OPERATION,
+            "operations": [
+                {
+                    "name": DEFAULT_OPERATION,
+                    "input_schema": operation_input_schema(),
+                    "output_schema": operation_output_schema()
+                }
+            ]
         }
     })
     .to_string()
+}
+
+pub fn i18n_fallback(key: &str) -> Option<String> {
+    i18n::en_messages().get(key).cloned()
+}
+
+pub fn i18n_catalog_value() -> Value {
+    let en = i18n::en_messages()
+        .into_iter()
+        .map(|(key, value)| (key, Value::String(value)))
+        .collect::<Map<String, Value>>();
+
+    json!({
+        "default_locale": "en",
+        "available_locales": ["en"],
+        "messages": {
+            "en": en
+        }
+    })
+}
+
+fn operation_input_schema() -> Value {
+    let mut config_schema = component_config_schema_value();
+    if let Some(obj) = config_schema.as_object_mut() {
+        obj.remove("$schema");
+        obj.remove("title");
+    }
+
+    json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "component-llm-openai invocation input",
+        "type": "object",
+        "required": ["input"],
+        "$defs": {
+            "ComponentConfig": config_schema,
+            "ChatMessage": {
+                "type": "object",
+                "required": ["role", "content"],
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": "Message role (system|user|assistant|tool|etc.)"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Message body"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "LlmOpenaiRequest": {
+                "type": "object",
+                "required": ["messages"],
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "Optional override of the model for this call. Takes precedence over component config default_model."
+                    },
+                    "messages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/ChatMessage"
+                        },
+                        "minItems": 1
+                    },
+                    "temperature": {
+                        "type": "number"
+                    },
+                    "top_p": {
+                        "type": "number"
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "extra": {
+                        "type": "object",
+                        "description": "Provider-specific options merged into the outgoing payload.",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        "properties": {
+            "config": {
+                "$ref": "#/$defs/ComponentConfig",
+                "description": "Optional per-invocation component config override for provider, base URL, API key secret reference, default model, and timeout."
+            },
+            "input": {
+                "$ref": "#/$defs/LlmOpenaiRequest",
+                "description": "Per-invocation input. Any model provided here overrides the component-level default_model."
+            }
+        }
+    })
+}
+
+fn operation_output_schema() -> Value {
+    json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "component-llm-openai response",
+        "type": "object",
+        "required": ["completion"],
+        "properties": {
+            "completion": {
+                "type": "string",
+                "description": "The main textual output from the assistant."
+            },
+            "messages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["role", "content"],
+                    "properties": {
+                        "role": { "type": "string" },
+                        "content": { "type": "string" }
+                    },
+                    "additionalProperties": false
+                },
+                "default": []
+            },
+            "raw_provider_response": {
+                "description": "Raw provider JSON response for debugging / advanced usage."
+            }
+        },
+        "additionalProperties": false
+    })
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn setup_apply_input_schema() -> Value {
+    json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "component-llm-openai setup.apply_answers input",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "mode": {
+                "type": "string",
+                "enum": ["default", "setup", "update", "upgrade", "remove"]
+            },
+            "current_config_cbor": {
+                "description": "Canonical CBOR bytes for the current component config, when present."
+            },
+            "answers_cbor": {
+                "description": "Canonical CBOR bytes for submitted wizard answers."
+            },
+            "metadata_cbor": {
+                "description": "Optional metadata payload reserved for future use."
+            }
+        },
+        "required": ["mode"]
+    })
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn component_config_schema_value() -> Value {
+    json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "component-llm-openai component configuration",
+        "type": "object",
+        "additionalProperties": false,
+        "default": {
+            "provider": "openai",
+            "base_url": Value::Null,
+            "api_key_secret": Value::Null,
+            "default_model": Value::Null,
+            "timeout_ms": Value::Null,
+        },
+        "examples": [
+            {
+                "provider": "openai",
+                "api_key_secret": "OPENAI_API_KEY",
+            },
+            {
+                "provider": "ollama",
+            },
+            {
+                "provider": "openrouter",
+                "api_key_secret": "OPENROUTER_API_KEY",
+                "default_model": "openrouter/auto",
+            },
+            {
+                "provider": "custom",
+                "base_url": "https://my-llm.example.com/v1",
+                "api_key_secret": "MY_LLM_API_KEY",
+                "default_model": "gpt-oss-120b",
+                "timeout_ms": 30000,
+            }
+        ],
+        "properties": {
+            "provider": {
+                "type": "string",
+                "enum": ["openai", "ollama", "openrouter", "together", "custom"],
+                "default": "openai",
+                "description": "Which LLM provider to use by default."
+            },
+            "base_url": {
+                "type": ["string", "null"],
+                "description": "Optional base URL override. Built-in providers use their standard endpoint unless this is set. Required for provider=custom."
+            },
+            "api_key_secret": {
+                "type": ["string", "null"],
+                "description": "Name of the stored secret to resolve at runtime, not the API key value itself. This is a secret reference name."
+            },
+            "default_model": {
+                "type": ["string", "null"],
+                "description": "Optional component-level fallback model. Per-invocation input.model overrides this value. Built-in providers use a provider default when this is empty."
+            },
+            "timeout_ms": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Optional request timeout in milliseconds. Leave empty to use runtime or host defaults."
+            }
+        }
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn component_descriptor() -> greentic_interfaces_guest::component_v0_6::node::ComponentDescriptor {
+    use greentic_interfaces_guest::component_v0_6::node::{
+        ComponentDescriptor, IoSchema, Op, SchemaSource,
+    };
+    let input_schema = encode_cbor(&operation_input_schema()).expect("encode input schema");
+    let output_schema = encode_cbor(&operation_output_schema()).expect("encode output schema");
+    let setup_apply_input =
+        encode_cbor(&setup_apply_input_schema()).expect("encode setup apply input schema");
+    let setup_apply_output =
+        encode_cbor(&component_config_schema_value()).expect("encode config output schema");
+
+    ComponentDescriptor {
+        name: COMPONENT_NAME.to_string(),
+        version: COMPONENT_VERSION.to_string(),
+        summary: Some("OpenAI-style LLM component for Greentic".to_string()),
+        capabilities: Vec::new(),
+        ops: vec![
+            Op {
+                name: DEFAULT_OPERATION.to_string(),
+                summary: Some("Invoke the OpenAI-compatible chat completions bridge".to_string()),
+                input: IoSchema {
+                    schema: SchemaSource::InlineCbor(input_schema),
+                    content_type: "application/cbor".to_string(),
+                    schema_version: None,
+                },
+                output: IoSchema {
+                    schema: SchemaSource::InlineCbor(output_schema),
+                    content_type: "application/cbor".to_string(),
+                    schema_version: None,
+                },
+                examples: Vec::new(),
+            },
+            Op {
+                name: "setup.apply_answers".to_string(),
+                summary: Some(
+                    "Apply component wizard answers and emit canonical config CBOR.".to_string(),
+                ),
+                input: IoSchema {
+                    schema: SchemaSource::InlineCbor(setup_apply_input),
+                    content_type: "application/cbor".to_string(),
+                    schema_version: None,
+                },
+                output: IoSchema {
+                    schema: SchemaSource::InlineCbor(setup_apply_output),
+                    content_type: "application/cbor".to_string(),
+                    schema_version: None,
+                },
+                examples: Vec::new(),
+            },
+        ],
+        schemas: Vec::new(),
+        setup: None,
+    }
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn encode_cbor<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, ComponentError> {
+    greentic_types::cbor::canonical::to_canonical_cbor_allow_floats(value)
+        .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn parse_payload(input: &[u8]) -> Value {
+    use greentic_types::cbor::canonical;
+
+    if let Ok(value) = canonical::from_cbor(input) {
+        value
+    } else {
+        serde_json::from_slice(input).unwrap_or_else(|_| json!({}))
+    }
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn parse_payload_to_json_string(input: &[u8]) -> Result<String, ComponentError> {
+    serde_json::to_string(&parse_payload(input))
+        .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn qa_spec_value(
+    payload: &Value,
+) -> Result<Value, greentic_interfaces_guest::component_v0_6::node::NodeError> {
+    let raw_mode = payload
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("default");
+    let mode = qa::normalize_mode(raw_mode).ok_or_else(|| {
+        ComponentError::new(
+            "invalid-qa-mode",
+            format!("unsupported QA mode `{raw_mode}`"),
+        )
+        .into_node_error()
+    })?;
+    serde_json::to_value(qa::qa_spec(mode)).map_err(|err| {
+        ComponentError::new("serialization-failed", err.to_string()).into_node_error()
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn apply_answers_value(
+    payload: &Value,
+) -> Result<Value, greentic_interfaces_guest::component_v0_6::node::NodeError> {
+    let raw_mode = payload
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("setup");
+    let mode = qa::normalize_mode(raw_mode).ok_or_else(|| {
+        ComponentError::new(
+            "invalid-qa-mode",
+            format!("unsupported QA mode `{raw_mode}`"),
+        )
+        .into_node_error()
+    })?;
+
+    let current_config = payload
+        .get("current_config_cbor")
+        .and_then(Value::as_array)
+        .map(|values| json_byte_array_to_vec(values))
+        .transpose()
+        .map_err(|err| ComponentError::new("invalid-input", err).into_node_error())?;
+    let answers = payload
+        .get("answers_cbor")
+        .and_then(Value::as_array)
+        .map(|values| json_byte_array_to_vec(values))
+        .transpose()
+        .map_err(|err| ComponentError::new("invalid-input", err).into_node_error())?;
+
+    let current_value = current_config.as_ref().map(|bytes| parse_payload(bytes));
+    let answers_value = answers.as_ref().map(|bytes| parse_payload(bytes));
+    qa::apply_answers(mode, current_value.as_ref(), answers_value.as_ref())
+        .map_err(|err| ComponentError::new("invalid-qa-answers", err).into_node_error())
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn json_byte_array_to_vec(values: &[Value]) -> Result<Vec<u8>, String> {
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_u64()
+                .and_then(|num| u8::try_from(num).ok())
+                .ok_or_else(|| "expected byte array payload".to_string())
+        })
+        .collect()
 }
 
 pub fn handle_message(operation: &str, input: &str) -> String {
@@ -506,6 +899,15 @@ pub fn handle_message(operation: &str, input: &str) -> String {
         Ok(output) => output,
         Err(err) => err.to_error_json().to_string(),
     }
+}
+
+#[doc(hidden)]
+pub fn invoke_with_host<H: Host>(
+    host: &H,
+    config: &LlmOpenaiConfig,
+    request: LlmOpenaiRequest,
+) -> Result<LlmOpenaiResponse, ComponentError> {
+    call_model(host, config, request, None)
 }
 
 fn handle_invocation<H: Host>(
@@ -526,42 +928,6 @@ fn handle_invocation<H: Host>(
         .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
 }
 
-#[cfg(target_arch = "wasm32")]
-fn handle_invocation_stream<H: Host>(
-    _operation: &str,
-    input: &str,
-    host: &H,
-    tenant: Option<&TenantContext>,
-) -> Vec<greentic_interfaces_guest::component::node::StreamEvent> {
-    use greentic_interfaces_guest::component::node::StreamEvent;
-
-    let payload: InvocationPayload = match serde_json::from_str(input) {
-        Ok(val) => val,
-        Err(err) => {
-            return vec![StreamEvent::Error(format!(
-                "invalid-input: failed to parse input JSON: {err}"
-            ))];
-        }
-    };
-    let config = payload.config.unwrap_or_default();
-    match call_model_stream(host, &config, payload.input, tenant) {
-        Ok((deltas, response)) => {
-            let mut events = Vec::with_capacity(deltas.len() + 3);
-            events.push(StreamEvent::Progress(0));
-            for delta in deltas {
-                events.push(StreamEvent::Data(json!({ "delta": delta }).to_string()));
-            }
-            match serde_json::to_string(&response) {
-                Ok(body) => events.push(StreamEvent::Data(body)),
-                Err(err) => events.push(StreamEvent::Error(format!("serialization-failed: {err}"))),
-            }
-            events.push(StreamEvent::Done);
-            events
-        }
-        Err(err) => vec![StreamEvent::Error(err.message)],
-    }
-}
-
 fn call_model<H: Host>(
     host: &H,
     config: &LlmOpenaiConfig,
@@ -571,7 +937,7 @@ fn call_model<H: Host>(
     call_model_inner(host, config, request, tenant, false).map(|(_, resp)| resp)
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+#[allow(dead_code)]
 fn call_model_stream<H: Host>(
     host: &H,
     config: &LlmOpenaiConfig,
@@ -971,6 +1337,19 @@ mod tests {
     }
 
     #[test]
+    fn built_in_provider_can_override_base_url() {
+        let config = LlmOpenaiConfig {
+            provider: LlmProvider::Openai,
+            base_url: Some("https://gateway.example.com/v1".into()),
+            api_key_secret: Some("OPENAI_API_KEY".into()),
+            ..Default::default()
+        };
+        let host = MockHost::default().with_secret("OPENAI_API_KEY", Some("token"));
+        let resolved = resolve_call(&host, &config, &sample_request()).expect("resolve");
+        assert_eq!(resolved.base_url, "https://gateway.example.com/v1");
+    }
+
+    #[test]
     fn model_resolution_priority() {
         let req = LlmOpenaiRequest {
             model: Some("req-model".into()),
@@ -1015,6 +1394,18 @@ mod tests {
     }
 
     #[test]
+    fn custom_provider_uses_compatibility_model_fallback_when_not_overridden() {
+        let config = LlmOpenaiConfig {
+            provider: LlmProvider::Custom,
+            base_url: Some("https://my-llm.example.com/v1".into()),
+            ..Default::default()
+        };
+        let host = MockHost::default();
+        let resolved = resolve_call(&host, &config, &sample_request()).expect("resolve");
+        assert_eq!(resolved.model, "gpt-4.1-mini");
+    }
+
+    #[test]
     fn auth_required_for_openai() {
         let config = LlmOpenaiConfig::default();
         let host = MockHost::default();
@@ -1031,6 +1422,33 @@ mod tests {
         let host = MockHost::default();
         let resolved = resolve_call(&host, &config, &sample_request()).unwrap();
         assert!(resolved.api_key.is_none());
+    }
+
+    #[test]
+    fn api_key_secret_is_treated_as_secret_reference_name() {
+        let config = LlmOpenaiConfig {
+            api_key_secret: Some("OPENAI_API_KEY".into()),
+            ..Default::default()
+        };
+        let host = MockHost::default().with_secret("OPENAI_API_KEY", Some("token-from-store"));
+        let resolved = resolve_call(&host, &config, &sample_request()).expect("resolve");
+        assert_eq!(resolved.api_key.as_deref(), Some("token-from-store"));
+    }
+
+    #[test]
+    fn generated_schema_describes_secret_reference_and_model_precedence() {
+        let config_schema = component_config_schema_value();
+        let secret_description = config_schema["properties"]["api_key_secret"]["description"]
+            .as_str()
+            .expect("secret description");
+        assert!(secret_description.contains("not the API key value itself"));
+
+        let input_schema = operation_input_schema();
+        let model_description =
+            input_schema["$defs"]["LlmOpenaiRequest"]["properties"]["model"]["description"]
+                .as_str()
+                .expect("model description");
+        assert!(model_description.contains("Takes precedence"));
     }
 
     #[test]

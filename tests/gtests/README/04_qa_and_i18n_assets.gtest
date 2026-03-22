@@ -1,0 +1,18 @@
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/04_qa_and_i18n_assets
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/04_qa_and_i18n_assets/artifacts
+#RUN test -x ${REPO_ROOT}/tools/i18n.sh
+#EXPECT_EXIT 0
+#RUN test -f ${REPO_ROOT}/assets/i18n/en.json
+#EXPECT_EXIT 0
+#RUN test -f ${REPO_ROOT}/assets/i18n/locales.json
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::default_mode_is_minimal_and_provider_first -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::setup_mode_includes_endpoint_auth_model_and_timeout -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::update_mode_starts_with_update_area_and_is_selective -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test qa::tests::answers_schema_includes_update_area_and_timeout_controls -- --exact
+#EXPECT_EXIT 0

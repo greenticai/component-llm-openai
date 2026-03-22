@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root="$1"
+set -a
+if [ -f "${repo_root}/.secrets" ]; then
+  . "${repo_root}/.secrets"
+fi
+set +a
+cargo test --manifest-path "${repo_root}/Cargo.toml" live_provider_roundtrip --test live_provider -- --ignored --exact

@@ -1,0 +1,12 @@
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/02_self_describing_surface
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/02_self_describing_surface/artifacts
+#RUN cargo test describe_mentions_world --test conformance -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test describe_is_self_contained_and_has_no_external_schema_paths --test conformance -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test english_i18n_catalog_is_embedded_in_rust --test conformance -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test i18n_fallback_exists_for_known_key --test conformance -- --exact
+#EXPECT_EXIT 0

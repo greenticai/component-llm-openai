@@ -1,0 +1,7 @@
+{
+  "step": 4,
+  "line_no": 11,
+  "command": "cargo test tests::config_model_used_when_request_missing -- --exact",
+  "exit_code": 0,
+  "duration_ms": 106
+}

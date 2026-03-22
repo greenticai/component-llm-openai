@@ -1,0 +1,16 @@
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/03_runtime_resolution
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/03_runtime_resolution/artifacts
+#RUN cargo test tests::default_provider_and_base_url -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::built_in_provider_can_override_base_url -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::model_resolution_priority -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::config_model_used_when_request_missing -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::custom_provider_uses_compatibility_model_fallback_when_not_overridden -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::api_key_secret_is_treated_as_secret_reference_name -- --exact
+#EXPECT_EXIT 0

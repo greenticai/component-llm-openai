@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 5,
+  "command": "cargo test tests::auth_required_for_openai -- --exact",
+  "exit_code": 0,
+  "duration_ms": 116
+}

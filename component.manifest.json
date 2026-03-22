@@ -42,37 +42,49 @@
     "examples": [
       {
         "api_key_secret": "OPENAI_API_KEY",
-        "default_model": "gpt-4.1-mini",
         "provider": "openai"
       },
       {
-        "base_url": "http://localhost:11434/v1",
-        "default_model": "llama3:8b",
         "provider": "ollama"
       },
       {
-        "api_key_secret": "CUSTOM_KEY",
-        "base_url": "https://my-gateway/v1",
-        "default_model": "gpt-4.1-mini",
-        "provider": "custom"
+        "api_key_secret": "OPENROUTER_API_KEY",
+        "default_model": "openrouter/auto",
+        "provider": "openrouter"
+      },
+      {
+        "api_key_secret": "MY_LLM_API_KEY",
+        "base_url": "https://my-llm.example.com/v1",
+        "default_model": "gpt-oss-120b",
+        "provider": "custom",
+        "timeout_ms": 30000
       }
     ],
     "properties": {
       "api_key_secret": {
-        "description": "Secret key name resolved via greentic-secrets. Required for OpenAI, OpenRouter, Together.",
-        "type": "string"
+        "description": "Name of the stored secret to resolve at runtime, not the API key value itself. This is a secret reference name. Required at runtime for OpenAI, OpenRouter, and Together.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "base_url": {
-        "description": "Optional override of the base URL. Required for provider=custom.",
-        "type": "string"
+        "description": "Optional base URL override. Built-in providers use their standard endpoint unless this is set. Required for provider=custom.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "default_model": {
-        "description": "Optional default model for this component instance.",
-        "type": "string"
+        "description": "Optional component-level fallback model. Per-invocation input.model overrides this value. Built-in providers use a provider default when this is empty.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "provider": {
         "default": "openai",
-        "description": "Provider to talk to. Defaults to openai.",
+        "description": "Which LLM provider to use by default.",
         "enum": [
           "openai",
           "ollama",
@@ -83,9 +95,12 @@
         "type": "string"
       },
       "timeout_ms": {
-        "description": "Optional request timeout in milliseconds if supported by the host HTTP client.",
+        "description": "Optional request timeout in milliseconds. Leave empty to use runtime or host defaults.",
         "minimum": 0,
-        "type": "integer"
+        "type": [
+          "integer",
+          "null"
+        ]
       }
     },
     "required": [],
@@ -98,9 +113,10 @@
       }
     }
   },
-  "describe_export": "get-manifest",
+  "default_operation": "handle_message",
+  "describe_export": "describe",
   "hashes": {
-    "component_wasm": "blake3:4a7ef0ea33e16ccf559b938a834a3201abf6c11e12ce1fc1f1f6f92f499492b4"
+    "component_wasm": "blake3:630a667cde7e9c8585d72d3e8ef2943c6e4fb9715a13d5e932685746a8f86f37"
   },
   "id": "ai.greentic.component-llm-openai",
   "limits": {
@@ -108,6 +124,123 @@
     "wall_time_ms": 1000
   },
   "name": "component-llm-openai",
+  "operations": [
+    {
+      "input_schema": {
+        "$defs": {
+          "ChatMessage": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "description": "Message body",
+                "type": "string"
+              },
+              "role": {
+                "description": "Message role (system|user|assistant|tool|etc.)",
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ],
+            "type": "object"
+          },
+          "LlmOpenaiRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "extra": {
+                "additionalProperties": true,
+                "description": "Provider-specific options merged into the outgoing payload.",
+                "type": "object"
+              },
+              "max_tokens": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "messages": {
+                "items": {
+                  "$ref": "#/$defs/ChatMessage"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "model": {
+                "description": "Optional override of the model for this call. Takes precedence over component config default_model.",
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "top_p": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "messages"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "schemas/component.schema.json",
+            "description": "Optional per-invocation component config override for provider, base URL, API key secret reference, default model, and timeout."
+          },
+          "input": {
+            "$ref": "#/$defs/LlmOpenaiRequest",
+            "description": "Per-invocation request input. Any model provided here overrides the component-level default_model."
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "title": "component-llm-openai invocation input",
+        "type": "object"
+      },
+      "name": "handle_message",
+      "output_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "completion": {
+            "description": "The main textual output from the assistant.",
+            "type": "string"
+          },
+          "messages": {
+            "default": [],
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "raw_provider_response": {
+            "description": "Raw provider JSON response for debugging / advanced usage."
+          }
+        },
+        "required": [
+          "completion"
+        ],
+        "title": "component-llm-openai response",
+        "type": "object"
+      }
+    }
+  ],
   "profiles": {
     "default": "stateless",
     "supported": [
@@ -118,5 +251,5 @@
     "messaging"
   ],
   "version": "0.1.0",
-  "world": "greentic:component/component@0.5.0"
+  "world": "greentic:component/component@0.6.0"
 }

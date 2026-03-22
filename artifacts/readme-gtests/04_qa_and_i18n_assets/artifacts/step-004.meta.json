@@ -1,0 +1,7 @@
+{
+  "step": 4,
+  "line_no": 11,
+  "command": "cargo test qa::tests::default_mode_is_minimal_and_provider_first -- --exact",
+  "exit_code": 0,
+  "duration_ms": 108
+}

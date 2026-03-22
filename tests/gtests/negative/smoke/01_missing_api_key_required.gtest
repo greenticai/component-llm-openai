@@ -1,0 +1,8 @@
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests/01_missing_api_key_required
+#MKDIR ${WORK_DIR}/artifacts/negative-gtests/01_missing_api_key_required/artifacts
+#RUN cargo test tests::auth_required_for_openai -- --exact
+#EXPECT_EXIT 0
+#RUN cargo test tests::generated_schema_describes_secret_reference_and_model_precedence -- --exact
+#EXPECT_EXIT 0
