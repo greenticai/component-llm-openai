@@ -8,6 +8,11 @@ on:
 jobs:
   rust:
     runs-on: ubuntu-latest
+    env:
+      CI_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CI_LIVE_LLM_BASE_URL: ${{ secrets.LIVE_LLM_BASE_URL }}
+      CI_LIVE_LLM_MODEL: ${{ secrets.LIVE_LLM_MODEL }}
+      CI_LIVE_LLM_PROVIDER: ${{ secrets.LIVE_LLM_PROVIDER }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -29,11 +34,6 @@ jobs:
           greentic-integration-tester run --gtest tests/gtests/README --artifacts-dir artifacts/readme-gtests --errors
           greentic-integration-tester run --gtest tests/gtests/negative/smoke --artifacts-dir artifacts/negative-gtests --errors
       - name: Prepare live-provider secrets
-        env:
-          CI_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CI_LIVE_LLM_BASE_URL: ${{ secrets.LIVE_LLM_BASE_URL }}
-          CI_LIVE_LLM_MODEL: ${{ secrets.LIVE_LLM_MODEL }}
-          CI_LIVE_LLM_PROVIDER: ${{ secrets.LIVE_LLM_PROVIDER }}
         run: |
           : "${CI_LIVE_LLM_PROVIDER:=openai}"
           : "${CI_LIVE_LLM_BASE_URL:=https://api.openai.com/v1}"
@@ -47,7 +47,7 @@ jobs:
           LIVE_LLM_EXPECT_CONTAINS=PONG_TEST_42
           EOF
       - name: Run live-provider gtest
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
+        if: ${{ env.CI_OPENAI_API_KEY != '' }}
         run: |
           mkdir -p artifacts/live-gtests
           greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --errors
