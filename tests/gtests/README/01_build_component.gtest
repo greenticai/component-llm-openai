@@ -3,7 +3,7 @@
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests/01_build_component
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests/01_build_component/artifacts
-#RUN bash -lc 'greentic-component build --manifest ${REPO_ROOT}/component.manifest.json --no-flow --json | sed -n "/^{/,\$p"'
+#RUN bash -lc 'CARGO_TERM_COLOR=never greentic-component build --manifest ${REPO_ROOT}/component.manifest.json --no-flow --json 2>&1 | python3 -c '"'"'import json, sys; lines = sys.stdin.read().splitlines(); start = next(i for i, line in enumerate(lines) if line.lstrip().startswith("{")); payload = "\n".join(lines[start:]); print(json.dumps(json.loads(payload)))'"'"''
 #EXPECT_EXIT 0
 #CAPTURE_JSON > ${OUT}
 #EXPECT_JSONPATH ${OUT} manifest equals ${REPO_ROOT}/component.manifest.json
