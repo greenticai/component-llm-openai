@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 40,
+  "command": "greentic-dev wizard validate --answers /tmp/gtest-kkljy2/launcher.answers.json --out /tmp/gtest-kkljy2/launcher-out",
+  "exit_code": 0,
+  "duration_ms": 3
+}

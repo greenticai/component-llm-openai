@@ -1,0 +1,7 @@
+{
+  "step": 2,
+  "line_no": 44,
+  "command": "grep -q LaunchPackWizard /tmp/gtest-kkljy2/launcher-out/plan.json",
+  "exit_code": 0,
+  "duration_ms": 2
+}

@@ -1,0 +1,7 @@
+{
+  "step": 4,
+  "line_no": 11,
+  "command": "cargo test i18n_fallback_exists_for_known_key --test conformance -- --exact",
+  "exit_code": 0,
+  "duration_ms": 222
+}

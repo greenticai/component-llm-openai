@@ -1,0 +1,23 @@
+{
+  "plan_version": 1,
+  "metadata": {
+    "generator": "greentic-component/wizard-runner",
+    "template_version": "component-wizard-run/v1",
+    "template_digest_blake3": "mode-build-test",
+    "requested_abi_version": "0.6.0"
+  },
+  "target_root": "/projects/ai/greentic-ng/component-llm-openai",
+  "plan": {
+    "meta": {
+      "id": "greentic.component.build_test",
+      "target": "component",
+      "mode": "scaffold"
+    },
+    "steps": [
+      {
+        "type": "build_component",
+        "project_root": "/projects/ai/greentic-ng/component-llm-openai"
+      }
+    ]
+  }
+}

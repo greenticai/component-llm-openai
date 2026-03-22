@@ -1,0 +1,7 @@
+{
+  "step": 6,
+  "line_no": 15,
+  "command": "cargo test tests::api_key_secret_is_treated_as_secret_reference_name -- --exact",
+  "exit_code": 0,
+  "duration_ms": 259
+}

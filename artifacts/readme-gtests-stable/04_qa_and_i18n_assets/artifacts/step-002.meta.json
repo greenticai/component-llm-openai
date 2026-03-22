@@ -1,0 +1,7 @@
+{
+  "step": 2,
+  "line_no": 7,
+  "command": "test -f /projects/ai/greentic-ng/component-llm-openai/assets/i18n/en.json",
+  "exit_code": 0,
+  "duration_ms": 1
+}
