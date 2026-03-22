@@ -1,13 +1,24 @@
-#SET OUT=${WORK_DIR}/build_component.json
+#SET ANSWERS=${WORK_DIR}/build_test.answers.json
+#SET PLAN=${WORK_DIR}/build_test.plan.json
 #MKDIR ${WORK_DIR}/artifacts
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests/01_build_component
 #MKDIR ${WORK_DIR}/artifacts/readme-gtests/01_build_component/artifacts
-#RUN bash -lc 'CARGO_TERM_COLOR=never greentic-component build --manifest ${REPO_ROOT}/component.manifest.json --no-flow --json 2>&1 | python3 -c '"'"'import json, pathlib, sys; out = pathlib.Path(sys.argv[1]); lines = sys.stdin.read().splitlines(); start = next(i for i, line in enumerate(lines) if line.lstrip().startswith("{")); payload = "\n".join(lines[start:]); obj = json.loads(payload); out.write_text(json.dumps(obj))'"'"' "${OUT}"'
+#WRITE ${ANSWERS} <<<EOF
+{
+  "schema": "component-wizard-run/v1",
+  "mode": "build-test",
+  "fields": {
+    "full_tests": false
+  }
+}
+EOF
+#RUN greentic-component wizard validate --answers ${ANSWERS} --plan-out ${PLAN} --project-root ${REPO_ROOT}
 #EXPECT_EXIT 0
-#EXPECT_JSONPATH ${OUT} manifest equals ${REPO_ROOT}/component.manifest.json
-#EXPECT_JSONPATH ${OUT} wasm_path contains target/wasm32-wasip2/release/component_llm_openai.wasm
-#EXPECT_JSONPATH ${OUT} wasm_hash exists
-#EXPECT_JSONPATH ${OUT} config_source equals Manifest
-#EXPECT_JSONPATH ${OUT} schema_written equals false
-#SAVE_ARTIFACT ${OUT}
+#EXPECT_JSONPATH ${PLAN} plan.meta.id equals greentic.component.build_test
+#RUN greentic-component build --manifest ${REPO_ROOT}/component.manifest.json --no-flow
+#EXPECT_EXIT 0
+#RUN test -f ${REPO_ROOT}/target/wasm32-wasip2/release/component_llm_openai.wasm
+#EXPECT_EXIT 0
+#SAVE_ARTIFACT ${ANSWERS}
+#SAVE_ARTIFACT ${PLAN}

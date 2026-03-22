@@ -30,6 +30,10 @@ jobs:
         uses: cargo-bins/cargo-binstall@main
         with:
           version: "1.17.8"
+      - name: Install gtc
+        run: cargo binstall --no-confirm --version 1.0.0-alpha1 gtc
+      - name: Bootstrap Greentic tools
+        run: gtc install
       - name: Install greentic-integration-tester
         run: cargo binstall --no-confirm greentic-integration-tester
       - name: Run static gtests

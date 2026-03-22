@@ -1,0 +1,2 @@
+    Finished `release` profile [optimized] target(s) in 0.16s
+warning: skipping describe artifacts (failed to instantiate component: component imports instance `greentic:http/http-client@1.0.0`, but a matching implementation was not found in the linker)

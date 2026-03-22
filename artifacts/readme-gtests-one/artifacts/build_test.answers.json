@@ -1,0 +1,7 @@
+{
+  "schema": "component-wizard-run/v1",
+  "mode": "build-test",
+  "fields": {
+    "full_tests": false
+  }
+}
