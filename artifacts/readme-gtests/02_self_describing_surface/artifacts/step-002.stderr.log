@@ -1,2 +1,2 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
-     Running tests/conformance.rs (target/debug/deps/conformance-52f79ebe31b643e7)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running tests/conformance.rs (target/debug/deps/conformance-8fa9b407103ce79b)

@@ -1,0 +1,9 @@
+{
+  "provider": "custom",
+  "base_url": "https://my-llm.example.com/v1",
+  "endpoint_requires_api_key": true,
+  "api_key_secret": "MY_LLM_API_KEY",
+  "default_model": "gpt-oss-120b",
+  "timeout_behavior": "custom",
+  "timeout_ms": 30000
+}

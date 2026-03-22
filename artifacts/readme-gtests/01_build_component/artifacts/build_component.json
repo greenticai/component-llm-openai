@@ -1,7 +1,0 @@
-{
-  "config_source": "Manifest",
-  "manifest": "/projects/ai/greentic-ng/component-llm-openai/component.manifest.json",
-  "schema_written": false,
-  "wasm_hash": "blake3:0c7a5cbb5c6f7efcb89d6b43e888c0bd1d4af252bbecdaed457e1d0b82c0c033",
-  "wasm_path": "/projects/ai/greentic-ng/component-llm-openai/target/wasm32-wasip2/release/component_llm_openai.wasm"
-}

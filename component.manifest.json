@@ -116,7 +116,7 @@
   "default_operation": "handle_message",
   "describe_export": "describe",
   "hashes": {
-    "component_wasm": "blake3:cc3d36b6665ad459133fdd52c80356b22d069547a1ef164c62332669aeea57ad"
+    "component_wasm": "blake3:80280cd8f904f3bd8e3ada097225a0c6734dc603b512ba97de27fca6279ec46f"
   },
   "id": "ai.greentic.component-llm-openai",
   "limits": {

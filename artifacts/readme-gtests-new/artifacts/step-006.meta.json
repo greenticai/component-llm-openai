@@ -1,0 +1,7 @@
+{
+  "step": 6,
+  "line_no": 52,
+  "command": "greentic-flow add-step --flow /tmp/gtest-yjMRSw/pack/flows/main.ygtc --node-id llm_default --component repo://local/component-llm-openai --resolver fixture:///tmp/gtest-yjMRSw/fixtures --wizard-mode default --answers-file /tmp/gtest-yjMRSw/default.answers.json --routing-out",
+  "exit_code": 0,
+  "duration_ms": 38
+}

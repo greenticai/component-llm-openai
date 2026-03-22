@@ -1,30 +1,5 @@
-warning: function `locale_chain` is never used
-  --> src/i18n.rs:16:4
-   |
-16 | fn locale_chain(locale: &str) -> Vec<String> {
-   |    ^^^^^^^^^^^^
-   |
-   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-
-warning: function `t` is never used
-  --> src/i18n.rs:28:8
-   |
-28 | pub fn t(locale: &str, key: &str) -> String {
-   |        ^
-
-warning: function `all_keys` is never used
-  --> src/i18n.rs:39:8
-   |
-39 | pub fn all_keys() -> Vec<String> {
-   |        ^^^^^^^^
-
-warning: function `load_locale_files` is never used
-  --> src/i18n_bundle.rs:11:8
-   |
-11 | pub fn load_locale_files(dir: &Path) -> Result<LocaleBundle, String> {
-   |        ^^^^^^^^^^^^^^^^^
-
-warning: `component-llm-openai` (lib test) generated 4 warnings
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
-     Running unittests src/lib.rs (target/debug/deps/component_llm_openai-9882bc11f04a9517)
-     Running tests/conformance.rs (target/debug/deps/conformance-52f79ebe31b643e7)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running unittests src/lib.rs (target/debug/deps/component_llm_openai-de6ede25d8332744)
+     Running unittests src/bin/export_wizard_fixture.rs (target/debug/deps/export_wizard_fixture-fc02fd24f6169fc0)
+     Running tests/conformance.rs (target/debug/deps/conformance-8fa9b407103ce79b)
+     Running tests/live_provider.rs (target/debug/deps/live_provider-b8a29277e3c93de6)

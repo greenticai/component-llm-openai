@@ -1,7 +1,7 @@
 {
   "step": 1,
-  "line_no": 6,
-  "command": "bash -lc greentic-component build --manifest /projects/ai/greentic-ng/component-llm-openai/component.manifest.json --no-flow --json | python3 -c \"import sys, json; data=sys.stdin.read(); start=data.rfind(\\\"{\\\"); print(data[start:]); json.loads(data[start:])\"",
+  "line_no": 16,
+  "command": "greentic-component wizard validate --answers /tmp/gtest-N4curi/build_test.answers.json --plan-out /tmp/gtest-N4curi/build_test.plan.json --project-root /projects/ai/greentic-ng/component-llm-openai",
   "exit_code": 0,
-  "duration_ms": 1522
+  "duration_ms": 14
 }

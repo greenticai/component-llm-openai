@@ -1,0 +1,7 @@
+{
+  "step": 9,
+  "line_no": 58,
+  "command": "grep -q provider: openai /tmp/gtest-yjMRSw/pack/flows/main.ygtc",
+  "exit_code": 0,
+  "duration_ms": 3
+}

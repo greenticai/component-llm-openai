@@ -1,0 +1,76 @@
+#SET PACK_DIR=${WORK_DIR}/pack
+#SET FLOW=${PACK_DIR}/flows/main.ygtc
+#SET FIXTURES=${WORK_DIR}/fixtures
+#SET GTC_ANSWERS=${WORK_DIR}/launcher.answers.json
+#SET GTC_OUT=${WORK_DIR}/launcher-out
+#SET DEFAULT_ANSWERS=${WORK_DIR}/default.answers.json
+#SET SETUP_ANSWERS=${WORK_DIR}/setup.answers.json
+#MKDIR ${WORK_DIR}/artifacts
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/05_wizard_pack_default_and_personalized
+#MKDIR ${WORK_DIR}/artifacts/readme-gtests/05_wizard_pack_default_and_personalized/artifacts
+#WRITE ${GTC_ANSWERS} <<<EOF
+{
+  "wizard_id": "greentic-dev.wizard.launcher.main",
+  "schema_id": "greentic-dev.launcher.main",
+  "schema_version": "1.0.0",
+  "locale": "en-US",
+  "answers": {
+    "selected_action": "pack"
+  },
+  "locks": {}
+}
+EOF
+#WRITE ${DEFAULT_ANSWERS} <<<EOF
+{
+  "api_key_secret": "OPENAI_API_KEY"
+}
+EOF
+#WRITE ${SETUP_ANSWERS} <<<EOF
+{
+  "provider": "custom",
+  "base_url": "https://my-llm.example.com/v1",
+  "endpoint_requires_api_key": true,
+  "api_key_secret": "MY_LLM_API_KEY",
+  "default_model": "gpt-oss-120b",
+  "timeout_behavior": "custom",
+  "timeout_ms": 30000
+}
+EOF
+#RUN gtc wizard validate --answers ${GTC_ANSWERS} --out ${GTC_OUT}
+#EXPECT_EXIT 0
+#EXPECT_JSONPATH ${GTC_OUT}/plan.json metadata.target equals launcher
+#EXPECT_JSONPATH ${GTC_OUT}/plan.json metadata.mode equals main
+#RUN grep -q 'LaunchPackWizard' ${GTC_OUT}/plan.json
+#EXPECT_EXIT 0
+#RUN greentic-pack new --dir ${PACK_DIR} ai.greentic.component-llm-openai-gtest
+#EXPECT_EXIT 0
+#RUN greentic-flow new --flow ${FLOW} --id ai.greentic.component-llm-openai.gtest --type messaging --name "component-llm-openai gtest" --description "Wizard add-step smoke test" --force
+#EXPECT_EXIT 0
+#RUN cargo run --quiet --bin export_wizard_fixture -- --reference repo://local/component-llm-openai --out ${FIXTURES} --default-answers ${DEFAULT_ANSWERS} --setup-answers ${SETUP_ANSWERS}
+#EXPECT_EXIT 0
+#RUN greentic-flow add-step --flow ${FLOW} --node-id llm_default --component repo://local/component-llm-openai --resolver fixture://${FIXTURES} --wizard-mode default --answers-file ${DEFAULT_ANSWERS} --routing-out
+#EXPECT_EXIT 0
+#RUN greentic-flow add-step --flow ${FLOW} --node-id llm_personalized --component repo://local/component-llm-openai --resolver fixture://${FIXTURES} --wizard-mode setup --answers-file ${SETUP_ANSWERS} --routing-out --after llm_default
+#EXPECT_EXIT 0
+#RUN grep -q 'llm_default:' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'provider: openai' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'api_key_secret: OPENAI_API_KEY' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'llm_personalized:' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'provider: custom' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'base_url: https://my-llm.example.com/v1' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'default_model: gpt-oss-120b' ${FLOW}
+#EXPECT_EXIT 0
+#RUN grep -q 'timeout_ms: 30000' ${FLOW}
+#EXPECT_EXIT 0
+#SAVE_ARTIFACT ${GTC_ANSWERS}
+#SAVE_ARTIFACT ${GTC_OUT}/plan.json
+#SAVE_ARTIFACT ${DEFAULT_ANSWERS}
+#SAVE_ARTIFACT ${SETUP_ANSWERS}
+#SAVE_ARTIFACT ${FLOW}

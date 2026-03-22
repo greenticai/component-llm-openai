@@ -1,0 +1,56 @@
+id: ai.greentic.component-llm-openai.gtest
+title: component-llm-openai gtest
+description: Wizard add-step smoke test
+type: messaging
+start: llm_default
+parameters: {}
+tags: []
+schema_version: 2
+entrypoints: {}
+meta:
+  greentic:
+    bindings_hints:
+      llm_default: []
+      llm_personalized: []
+    components:
+      llm_default:
+        abi_version: 0.6.0
+        added_at: 1774182005
+        component_id: repo://local/component-llm-openai
+        exported_ops_seen:
+        - describe
+        - invoke
+        updated_at: 1774182005
+      llm_personalized:
+        abi_version: 0.6.0
+        added_at: 1774182005
+        component_id: repo://local/component-llm-openai
+        exported_ops_seen:
+        - describe
+        - invoke
+        updated_at: 1774182005
+    secrets_hints:
+      llm_default: []
+      llm_personalized: []
+nodes:
+  llm_default:
+    routing:
+    - to: llm_personalized
+    run:
+      component: repo://local/component-llm-openai
+      config:
+        api_key_secret: OPENAI_API_KEY
+        base_url: null
+        default_model: null
+        provider: openai
+        timeout_ms: null
+  llm_personalized:
+    routing: out
+    run:
+      component: repo://local/component-llm-openai
+      config:
+        api_key_secret: MY_LLM_API_KEY
+        base_url: https://my-llm.example.com/v1
+        default_model: gpt-oss-120b
+        provider: custom
+        timeout_ms: 30000

@@ -1,0 +1,7 @@
+{
+  "step": 8,
+  "line_no": 56,
+  "command": "grep -q llm_default: /tmp/gtest-JfI9wu/pack/flows/main.ygtc",
+  "exit_code": 0,
+  "duration_ms": 2
+}

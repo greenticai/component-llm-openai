@@ -550,6 +550,84 @@ pub fn i18n_catalog_value() -> Value {
     })
 }
 
+pub fn fixture_key(reference: &str) -> String {
+    reference
+        .trim_start_matches("oci://")
+        .trim_start_matches("repo://")
+        .trim_start_matches("store://")
+        .trim_start_matches("file://")
+        .replace(['/', ':', '@'], "_")
+}
+
+pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::ComponentDescribe {
+    use std::collections::BTreeMap;
+
+    use greentic_types::schemas::common::schema_ir::{AdditionalProperties, SchemaIr};
+    use greentic_types::schemas::component::v0_6_0::{
+        ComponentDescribe, ComponentInfo, ComponentOperation, ComponentRunInput,
+        ComponentRunOutput, schema_hash,
+    };
+
+    let config_schema = component_config_schema_ir();
+    let input_schema = SchemaIr::Object {
+        properties: BTreeMap::from([
+            ("config".to_string(), config_schema.clone()),
+            (
+                "input".to_string(),
+                SchemaIr::Object {
+                    properties: BTreeMap::new(),
+                    required: vec![],
+                    additional: AdditionalProperties::Allow,
+                },
+            ),
+        ]),
+        required: vec!["input".to_string()],
+        additional: AdditionalProperties::Forbid,
+    };
+    let output_schema = SchemaIr::Object {
+        properties: BTreeMap::from([(
+            "completion".to_string(),
+            SchemaIr::String {
+                min_len: None,
+                max_len: None,
+                regex: None,
+                format: None,
+            },
+        )]),
+        required: vec!["completion".to_string()],
+        additional: AdditionalProperties::Allow,
+    };
+    let operation_hash =
+        schema_hash(&input_schema, &output_schema, &config_schema).expect("schema hash");
+
+    ComponentDescribe {
+        info: ComponentInfo {
+            id: COMPONENT_ID.to_string(),
+            version: COMPONENT_VERSION.to_string(),
+            role: "tool".to_string(),
+            display_name: None,
+        },
+        provided_capabilities: Vec::new(),
+        required_capabilities: Vec::new(),
+        metadata: BTreeMap::new(),
+        operations: vec![ComponentOperation {
+            id: DEFAULT_OPERATION.to_string(),
+            display_name: None,
+            input: ComponentRunInput {
+                schema: input_schema,
+            },
+            output: ComponentRunOutput {
+                schema: output_schema,
+            },
+            defaults: BTreeMap::new(),
+            redactions: Vec::new(),
+            constraints: BTreeMap::new(),
+            schema_hash: operation_hash,
+        }],
+        config_schema,
+    }
+}
+
 fn operation_input_schema() -> Value {
     let mut config_schema = component_config_schema_value();
     if let Some(obj) = config_schema.as_object_mut() {
@@ -747,6 +825,69 @@ fn component_config_schema_value() -> Value {
     })
 }
 
+fn component_config_schema_ir() -> greentic_types::schemas::common::schema_ir::SchemaIr {
+    use std::collections::BTreeMap;
+
+    use ciborium::value::Value as CborValue;
+    use greentic_types::schemas::common::schema_ir::{AdditionalProperties, SchemaIr};
+
+    let string_schema = || SchemaIr::String {
+        min_len: None,
+        max_len: None,
+        regex: None,
+        format: None,
+    };
+
+    SchemaIr::Object {
+        properties: BTreeMap::from([
+            (
+                "provider".to_string(),
+                SchemaIr::Enum {
+                    values: vec![
+                        CborValue::Text("openai".to_string()),
+                        CborValue::Text("ollama".to_string()),
+                        CborValue::Text("openrouter".to_string()),
+                        CborValue::Text("together".to_string()),
+                        CborValue::Text("custom".to_string()),
+                    ],
+                },
+            ),
+            (
+                "base_url".to_string(),
+                SchemaIr::OneOf {
+                    variants: vec![string_schema(), SchemaIr::Null],
+                },
+            ),
+            (
+                "api_key_secret".to_string(),
+                SchemaIr::OneOf {
+                    variants: vec![string_schema(), SchemaIr::Null],
+                },
+            ),
+            (
+                "default_model".to_string(),
+                SchemaIr::OneOf {
+                    variants: vec![string_schema(), SchemaIr::Null],
+                },
+            ),
+            (
+                "timeout_ms".to_string(),
+                SchemaIr::OneOf {
+                    variants: vec![
+                        SchemaIr::Int {
+                            min: Some(0),
+                            max: None,
+                        },
+                        SchemaIr::Null,
+                    ],
+                },
+            ),
+        ]),
+        required: Vec::new(),
+        additional: AdditionalProperties::Forbid,
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn component_descriptor() -> greentic_interfaces_guest::component_v0_6::node::ComponentDescriptor {
     use greentic_interfaces_guest::component_v0_6::node::{
@@ -807,6 +948,107 @@ fn component_descriptor() -> greentic_interfaces_guest::component_v0_6::node::Co
 fn encode_cbor<T: serde::Serialize>(value: &T) -> Result<Vec<u8>, ComponentError> {
     greentic_types::cbor::canonical::to_canonical_cbor_allow_floats(value)
         .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
+}
+
+pub fn encode_cbor_for_tests<T: serde::Serialize>(
+    value: &T,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    Ok(greentic_types::cbor::canonical::to_canonical_cbor_allow_floats(value)?)
+}
+
+pub fn fixture_qa_spec_cbor(mode: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mode = qa::normalize_mode(mode)
+        .ok_or_else(|| std::io::Error::other(format!("unsupported QA mode `{mode}`")))?;
+    Ok(greentic_types::cbor::canonical::to_canonical_cbor(
+        &qa::qa_spec(mode),
+    )?)
+}
+
+pub fn fixture_apply_config_cbor(
+    mode: &str,
+    answers: &Value,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mode = qa::normalize_mode(mode)
+        .ok_or_else(|| std::io::Error::other(format!("unsupported QA mode `{mode}`")))?;
+    let mut merged_answers = answers
+        .as_object()
+        .cloned()
+        .ok_or_else(|| std::io::Error::other("answers must be an object"))?;
+    merge_fixture_question_defaults(&qa::qa_spec(mode), &mut merged_answers)?;
+    let config = qa::apply_answers(mode, None, Some(&Value::Object(merged_answers)))
+        .map_err(std::io::Error::other)?;
+    Ok(greentic_types::cbor::canonical::to_canonical_cbor(&config)?)
+}
+
+fn merge_fixture_question_defaults(
+    spec: &greentic_types::schemas::component::v0_6_0::ComponentQaSpec,
+    answers: &mut Map<String, Value>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for question in &spec.questions {
+        if answers.contains_key(&question.id) {
+            continue;
+        }
+        if question_is_skipped(question.skip_if.as_ref(), answers)? {
+            continue;
+        }
+        if let Some(default) = &question.default {
+            answers.insert(question.id.clone(), serde_json::to_value(default)?);
+        }
+    }
+    Ok(())
+}
+
+fn question_is_skipped(
+    expr: Option<&greentic_types::schemas::component::v0_6_0::SkipExpression>,
+    answers: &Map<String, Value>,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    use greentic_types::schemas::component::v0_6_0::SkipExpression;
+
+    let Some(expr) = expr else {
+        return Ok(false);
+    };
+
+    Ok(match expr {
+        SkipExpression::Condition(condition) => {
+            let answer = answers.get(&condition.field);
+            let answer_is_empty = match answer {
+                None | Some(Value::Null) => true,
+                Some(Value::String(value)) => value.trim().is_empty(),
+                Some(Value::Array(values)) => values.is_empty(),
+                Some(Value::Object(map)) => map.is_empty(),
+                Some(_) => false,
+            };
+            let equals = if let Some(expected) = &condition.equals {
+                answer == Some(&serde_json::to_value(expected)?)
+            } else {
+                false
+            };
+            let not_equals = if let Some(expected) = &condition.not_equals {
+                answer != Some(&serde_json::to_value(expected)?)
+            } else {
+                false
+            };
+            equals
+                || not_equals
+                || (condition.is_empty && answer_is_empty)
+                || (condition.is_not_empty && !answer_is_empty)
+        }
+        SkipExpression::And(items) => {
+            let mut all = true;
+            for item in items {
+                all = all && question_is_skipped(Some(item), answers)?;
+            }
+            all
+        }
+        SkipExpression::Or(items) => {
+            let mut any = false;
+            for item in items {
+                any = any || question_is_skipped(Some(item), answers)?;
+            }
+            any
+        }
+        SkipExpression::Not(item) => !question_is_skipped(Some(item), answers)?,
+    })
 }
 
 #[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]

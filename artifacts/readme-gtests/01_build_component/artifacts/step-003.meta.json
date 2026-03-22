@@ -1,0 +1,7 @@
+{
+  "step": 3,
+  "line_no": 21,
+  "command": "test -f /projects/ai/greentic-ng/component-llm-openai/target/wasm32-wasip2/release/component_llm_openai.wasm",
+  "exit_code": 0,
+  "duration_ms": 2
+}

@@ -41,26 +41,38 @@ pub fn normalize_mode(raw: &str) -> Option<WizardMode> {
 }
 
 pub fn qa_spec(mode: WizardMode) -> ComponentQaSpec {
-    let (title, description, questions) = match mode {
+    let (title, description, questions, defaults) = match mode {
         WizardMode::Default => (
             text("qa.default.title"),
             Some(text("qa.default.description")),
             default_questions(),
+            qa_defaults(&[
+                ("provider", json_string("openai")),
+                ("endpoint_requires_api_key", json_bool(true)),
+            ]),
         ),
         WizardMode::Setup => (
             text("qa.setup.title"),
             Some(text("qa.setup.description")),
             setup_questions(),
+            qa_defaults(&[
+                ("provider", json_string("openai")),
+                ("use_standard_endpoint", json_bool(true)),
+                ("endpoint_requires_api_key", json_bool(true)),
+                ("timeout_behavior", json_string("runtime_default")),
+            ]),
         ),
         WizardMode::Update => (
             text("qa.update.title"),
             Some(text("qa.update.description")),
             update_questions(),
+            BTreeMap::new(),
         ),
         WizardMode::Remove => (
             text("qa.remove.title"),
             Some(text("qa.remove.description")),
             remove_questions(),
+            BTreeMap::new(),
         ),
     };
 
@@ -69,7 +81,7 @@ pub fn qa_spec(mode: WizardMode) -> ComponentQaSpec {
         title,
         description,
         questions,
-        defaults: BTreeMap::new(),
+        defaults,
     }
 }
 
@@ -362,16 +374,16 @@ fn provider_from_answers_or_config(
 fn default_questions() -> Vec<Question> {
     vec![
         provider_question(None),
-        base_url_question(Some(skip_if_provider_not("custom"))),
-        custom_requires_api_key_question(Some(skip_if_provider_not("custom"))),
+        base_url_question(false, Some(skip_if_provider_not("custom"))),
+        custom_requires_api_key_question(false, Some(skip_if_provider_not("custom"))),
         api_key_secret_question(
-            true,
+            false,
             Some(SkipExpression::Or(vec![
                 skip_if_provider_equals("ollama"),
                 skip_if_custom_without_api_key(),
             ])),
         ),
-        default_model_question(true, Some(skip_if_provider_not("custom"))),
+        default_model_question(false, Some(skip_if_provider_not("custom"))),
     ]
 }
 
@@ -379,13 +391,16 @@ fn setup_questions() -> Vec<Question> {
     vec![
         provider_question(None),
         use_standard_endpoint_question(Some(skip_if_provider_equals("custom"))),
-        base_url_question(Some(SkipExpression::And(vec![
-            skip_if_provider_not("custom"),
-            skip_if_use_standard_endpoint(),
-        ]))),
-        custom_requires_api_key_question(Some(skip_if_provider_not("custom"))),
+        base_url_question(
+            false,
+            Some(SkipExpression::And(vec![
+                skip_if_provider_not("custom"),
+                skip_if_use_standard_endpoint(),
+            ])),
+        ),
+        custom_requires_api_key_question(false, Some(skip_if_provider_not("custom"))),
         api_key_secret_question(
-            true,
+            false,
             Some(SkipExpression::Or(vec![
                 skip_if_provider_equals("ollama"),
                 skip_if_custom_without_api_key(),
@@ -393,7 +408,7 @@ fn setup_questions() -> Vec<Question> {
         ),
         default_model_question(false, None),
         timeout_behavior_question(None),
-        timeout_ms_question(Some(skip_if_timeout_behavior_not_custom())),
+        timeout_ms_question(false, Some(skip_if_timeout_behavior_not_custom())),
     ]
 }
 
@@ -412,25 +427,31 @@ fn update_questions() -> Vec<Question> {
             ]),
             skip_if_provider_equals("custom"),
         ]))),
-        base_url_question(Some(SkipExpression::Or(vec![
-            SkipExpression::And(vec![
-                skip_if_update_area_not("provider"),
-                skip_if_update_area_not("endpoint"),
-            ]),
-            SkipExpression::And(vec![
+        base_url_question(
+            false,
+            Some(SkipExpression::Or(vec![
+                SkipExpression::And(vec![
+                    skip_if_update_area_not("provider"),
+                    skip_if_update_area_not("endpoint"),
+                ]),
+                SkipExpression::And(vec![
+                    skip_if_provider_not("custom"),
+                    skip_if_use_standard_endpoint(),
+                ]),
+            ])),
+        ),
+        custom_requires_api_key_question(
+            false,
+            Some(SkipExpression::Or(vec![
+                SkipExpression::And(vec![
+                    skip_if_update_area_not("provider"),
+                    skip_if_update_area_not("authentication"),
+                ]),
                 skip_if_provider_not("custom"),
-                skip_if_use_standard_endpoint(),
-            ]),
-        ]))),
-        custom_requires_api_key_question(Some(SkipExpression::Or(vec![
-            SkipExpression::And(vec![
-                skip_if_update_area_not("provider"),
-                skip_if_update_area_not("authentication"),
-            ]),
-            skip_if_provider_not("custom"),
-        ]))),
+            ])),
+        ),
         api_key_secret_question(
-            true,
+            false,
             Some(SkipExpression::Or(vec![
                 SkipExpression::And(vec![
                     skip_if_update_area_not("provider"),
@@ -442,10 +463,13 @@ fn update_questions() -> Vec<Question> {
         ),
         default_model_question(false, Some(skip_if_update_area_not("default_model"))),
         timeout_behavior_question(Some(skip_if_update_area_not("timeout"))),
-        timeout_ms_question(Some(SkipExpression::Or(vec![
-            skip_if_update_area_not("timeout"),
-            skip_if_timeout_behavior_not_custom(),
-        ]))),
+        timeout_ms_question(
+            false,
+            Some(SkipExpression::Or(vec![
+                skip_if_update_area_not("timeout"),
+                skip_if_timeout_behavior_not_custom(),
+            ])),
+        ),
     ]
 }
 
@@ -489,23 +513,23 @@ fn use_standard_endpoint_question(skip_if: Option<SkipExpression>) -> Question {
     )
 }
 
-fn base_url_question(skip_if: Option<SkipExpression>) -> Question {
+fn base_url_question(required: bool, skip_if: Option<SkipExpression>) -> Question {
     text_question(
         "base_url",
         "qa.field.base_url.label",
         "qa.field.base_url.help",
-        true,
+        required,
         None,
         skip_if,
     )
 }
 
-fn custom_requires_api_key_question(skip_if: Option<SkipExpression>) -> Question {
+fn custom_requires_api_key_question(required: bool, skip_if: Option<SkipExpression>) -> Question {
     bool_question(
         "endpoint_requires_api_key",
         "qa.field.endpoint_requires_api_key.label",
         "qa.field.endpoint_requires_api_key.help",
-        true,
+        required,
         Some(json_bool(true)),
         skip_if,
     )
@@ -548,12 +572,12 @@ fn timeout_behavior_question(skip_if: Option<SkipExpression>) -> Question {
     )
 }
 
-fn timeout_ms_question(skip_if: Option<SkipExpression>) -> Question {
+fn timeout_ms_question(required: bool, skip_if: Option<SkipExpression>) -> Question {
     number_question(
         "timeout_ms",
         "qa.field.timeout_ms.label",
         "qa.field.timeout_ms.help",
-        true,
+        required,
         None,
         skip_if,
     )
@@ -670,6 +694,13 @@ fn choice_question(
 
 fn text(key: &str) -> I18nText {
     I18nText::new(key, i18n_fallback(key))
+}
+
+fn qa_defaults(entries: &[(&str, Value)]) -> BTreeMap<String, ciborium::value::Value> {
+    entries
+        .iter()
+        .map(|(key, value)| ((*key).to_string(), to_cbor_value(value.clone())))
+        .collect()
 }
 
 fn to_cbor_value(value: Value) -> ciborium::value::Value {
@@ -840,6 +871,10 @@ mod tests {
         let spec = qa_spec(WizardMode::Default);
         assert_eq!(spec.mode, QaMode::Default);
         assert_eq!(spec.questions[0].id, "provider");
+        assert_eq!(
+            serde_json::to_value(spec.defaults.get("provider")).expect("provider default"),
+            json!("openai")
+        );
         assert!(
             !spec
                 .questions
@@ -864,6 +899,15 @@ mod tests {
         ] {
             find_question(&spec, id);
         }
+        assert_eq!(
+            serde_json::to_value(spec.defaults.get("use_standard_endpoint"))
+                .expect("endpoint default"),
+            json!(true)
+        );
+        assert_eq!(
+            serde_json::to_value(spec.defaults.get("timeout_behavior")).expect("timeout default"),
+            json!("runtime_default")
+        );
     }
 
     #[test]

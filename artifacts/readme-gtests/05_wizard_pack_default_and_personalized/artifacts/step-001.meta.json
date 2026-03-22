@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 40,
+  "command": "gtc wizard validate --answers /tmp/gtest-JfI9wu/launcher.answers.json --out /tmp/gtest-JfI9wu/launcher-out",
+  "exit_code": 0,
+  "duration_ms": 12
+}

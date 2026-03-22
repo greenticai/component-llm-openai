@@ -1,0 +1,8 @@
+Using manifest at /projects/ai/greentic-ng/component-llm-openai/component.manifest.json (cargo: cargo)
+Resolved manifest world: greentic:component/component@0.6.0
+cargo-component-component 0.21.1
+Running cargo component build via cargo in /projects/ai/greentic-ng/component-llm-openai
+Exported world: greentic:component/component@0.6.0 (compatible fallback export: root:component/root)
+Built wasm artifact at /projects/ai/greentic-ng/component-llm-openai/target/wasm32-wasip2/release/component_llm_openai.wasm
+Updated /projects/ai/greentic-ng/component-llm-openai/component.manifest.json hashes (blake3)
+Flow regeneration skipped (--no-flow)
