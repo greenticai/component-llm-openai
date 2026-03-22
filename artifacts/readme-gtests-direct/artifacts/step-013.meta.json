@@ -1,0 +1,7 @@
+{
+  "step": 13,
+  "line_no": 66,
+  "command": "grep -q base_url: https://my-llm.example.com/v1 /tmp/gtest-ucDmFe/pack/flows/main.ygtc",
+  "exit_code": 0,
+  "duration_ms": 8
+}

@@ -1,7 +1,7 @@
 {
   "step": 7,
   "line_no": 54,
-  "command": "greentic-flow add-step --flow /tmp/gtest-JfI9wu/pack/flows/main.ygtc --node-id llm_personalized --component repo://local/component-llm-openai --resolver fixture:///tmp/gtest-JfI9wu/fixtures --wizard-mode setup --answers-file /tmp/gtest-JfI9wu/setup.answers.json --routing-out --after llm_default",
+  "command": "greentic-flow add-step --flow /tmp/gtest-2RuupB/pack/flows/main.ygtc --node-id llm_personalized --component repo://local/component-llm-openai --resolver fixture:///tmp/gtest-2RuupB/fixtures --wizard-mode setup --answers-file /tmp/gtest-2RuupB/setup.answers.json --routing-out --after llm_default",
   "exit_code": 0,
-  "duration_ms": 44
+  "duration_ms": 47
 }

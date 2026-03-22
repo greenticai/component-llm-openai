@@ -1,0 +1,10 @@
+{
+  "wizard_id": "greentic-dev.wizard.launcher.main",
+  "schema_id": "greentic-dev.launcher.main",
+  "schema_version": "1.0.0",
+  "locale": "en-US",
+  "answers": {
+    "selected_action": "pack"
+  },
+  "locks": {}
+}

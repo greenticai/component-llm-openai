@@ -3,5 +3,5 @@
   "line_no": 5,
   "command": "cargo test tests::custom_requires_base_url -- --exact",
   "exit_code": 0,
-  "duration_ms": 214
+  "duration_ms": 542
 }

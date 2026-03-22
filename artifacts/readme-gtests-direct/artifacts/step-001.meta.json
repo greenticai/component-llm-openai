@@ -1,0 +1,7 @@
+{
+  "step": 1,
+  "line_no": 40,
+  "command": "greentic-dev wizard validate --answers /tmp/gtest-ucDmFe/launcher.answers.json --out /tmp/gtest-ucDmFe/launcher-out",
+  "exit_code": 0,
+  "duration_ms": 55
+}

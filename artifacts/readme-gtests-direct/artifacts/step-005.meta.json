@@ -1,0 +1,7 @@
+{
+  "step": 5,
+  "line_no": 50,
+  "command": "cargo run --quiet --bin export_wizard_fixture -- --reference repo://local/component-llm-openai --out /tmp/gtest-ucDmFe/fixtures --default-answers /tmp/gtest-ucDmFe/default.answers.json --setup-answers /tmp/gtest-ucDmFe/setup.answers.json",
+  "exit_code": 0,
+  "duration_ms": 3775
+}

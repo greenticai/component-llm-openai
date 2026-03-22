@@ -1,7 +1,7 @@
 {
   "step": 1,
   "line_no": 16,
-  "command": "greentic-component wizard validate --answers /tmp/gtest-N4curi/build_test.answers.json --plan-out /tmp/gtest-N4curi/build_test.plan.json --project-root /projects/ai/greentic-ng/component-llm-openai",
+  "command": "greentic-component wizard validate --answers /tmp/gtest-fsAQrN/build_test.answers.json --plan-out /tmp/gtest-fsAQrN/build_test.plan.json --project-root /projects/ai/greentic-ng/component-llm-openai",
   "exit_code": 0,
-  "duration_ms": 14
+  "duration_ms": 7
 }

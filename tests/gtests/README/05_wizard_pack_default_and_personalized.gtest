@@ -37,7 +37,7 @@ EOF
   "timeout_ms": 30000
 }
 EOF
-#RUN gtc wizard validate --answers ${GTC_ANSWERS} --out ${GTC_OUT}
+#RUN greentic-dev wizard validate --answers ${GTC_ANSWERS} --out ${GTC_OUT}
 #EXPECT_EXIT 0
 #EXPECT_JSONPATH ${GTC_OUT}/plan.json metadata.target equals launcher
 #EXPECT_JSONPATH ${GTC_OUT}/plan.json metadata.mode equals main

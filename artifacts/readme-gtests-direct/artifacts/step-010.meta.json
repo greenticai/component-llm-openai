@@ -1,0 +1,7 @@
+{
+  "step": 10,
+  "line_no": 60,
+  "command": "grep -q api_key_secret: OPENAI_API_KEY /tmp/gtest-ucDmFe/pack/flows/main.ygtc",
+  "exit_code": 0,
+  "duration_ms": 9
+}
