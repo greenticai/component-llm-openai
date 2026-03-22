@@ -26,8 +26,10 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Cargo check (wasm32-wasip2)
         run: cargo check --target wasm32-wasip2
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
       - name: Install greentic-integration-tester
-        run: cargo install greentic-integration-tester
+        run: cargo binstall --no-confirm greentic-integration-tester
       - name: Run static gtests
         run: |
           mkdir -p artifacts/readme-gtests artifacts/negative-gtests
