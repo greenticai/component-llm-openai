@@ -1,7 +1,7 @@
 {
   "step": 14,
   "line_no": 68,
-  "command": "grep -q default_model: gpt-oss-120b /tmp/gtest-2RuupB/pack/flows/main.ygtc",
+  "command": "grep -q default_model: gpt-oss-120b /tmp/gtest-saRBrC/pack/flows/main.ygtc",
   "exit_code": 0,
-  "duration_ms": 1
+  "duration_ms": 2
 }

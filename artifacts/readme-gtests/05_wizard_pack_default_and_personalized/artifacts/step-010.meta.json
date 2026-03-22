@@ -1,7 +1,7 @@
 {
   "step": 10,
   "line_no": 60,
-  "command": "grep -q api_key_secret: OPENAI_API_KEY /tmp/gtest-2RuupB/pack/flows/main.ygtc",
+  "command": "grep -q api_key_secret: OPENAI_API_KEY /tmp/gtest-saRBrC/pack/flows/main.ygtc",
   "exit_code": 0,
-  "duration_ms": 1
+  "duration_ms": 3
 }

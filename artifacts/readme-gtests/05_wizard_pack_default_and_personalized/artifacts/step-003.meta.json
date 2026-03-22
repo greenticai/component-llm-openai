@@ -1,7 +1,7 @@
 {
   "step": 3,
   "line_no": 46,
-  "command": "greentic-pack new --dir /tmp/gtest-2RuupB/pack ai.greentic.component-llm-openai-gtest",
+  "command": "greentic-pack new --dir /tmp/gtest-saRBrC/pack ai.greentic.component-llm-openai-gtest",
   "exit_code": 0,
-  "duration_ms": 9
+  "duration_ms": 38
 }

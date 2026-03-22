@@ -1,7 +1,7 @@
 {
   "step": 12,
   "line_no": 64,
-  "command": "grep -q provider: custom /tmp/gtest-2RuupB/pack/flows/main.ygtc",
+  "command": "grep -q provider: custom /tmp/gtest-saRBrC/pack/flows/main.ygtc",
   "exit_code": 0,
-  "duration_ms": 1
+  "duration_ms": 4
 }
