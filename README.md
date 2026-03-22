@@ -156,9 +156,9 @@ cargo build --target wasm32-wasip2
 
 The generated `component.manifest.json` points at `target/wasm32-wasip2/release/component_llm_openai.wasm`. After rebuilding the release wasm, refresh the manifest hash with `greentic-component inspect --json target/wasm32-wasip2/release/component_llm_openai.wasm`.
 
-## Live gtest
+## Live test
 
-The repo also includes a live `greentic-integration-tester` gtest at [tests/gtests/live/01_live_provider.gtest](/projects/ai/greentic-ng/component-llm-openai/tests/gtests/live/01_live_provider.gtest).
+The repo includes a real Rust integration test at [tests/live_provider.rs](/projects/ai/greentic-ng/component-llm-openai/tests/live_provider.rs) that talks to a live OpenAI-compatible endpoint.
 
 It is designed to:
 
@@ -187,14 +187,6 @@ Then run:
 ```bash
 ollama serve
 ollama pull llama3:8b
-greentic-integration-tester run --gtest tests/gtests/live --artifacts-dir artifacts/live-gtests --errors
-```
-
-If `.secrets` is missing, the live gtest now exits cleanly and prints the setup steps instead of failing with an unhelpful ignored-test message.
-
-If you prefer, you can also source the same settings manually before running the Rust test directly:
-
-```bash
 set -a
 . ./.secrets
 set +a
@@ -205,8 +197,8 @@ cargo test live_provider_roundtrip --test live_provider -- --exact
 
 CI behavior:
 
-- `.github/workflows/ci.yml` writes a temporary `.secrets` file from CI secrets
-- if `OPENAI_API_KEY` is present, the live gtest runs against OpenAI by default using `gpt-5-mini`
-- `LIVE_LLM_BASE_URL`, `LIVE_LLM_MODEL`, and `LIVE_LLM_PROVIDER` can optionally override that CI default
+- `.github/workflows/nightly-e2e.yml` runs the Rust live test directly on a nightly schedule
+- if `OPENAI_API_KEY` is present, the nightly test runs against OpenAI by default using `gpt-5-mini`
+- `LIVE_LLM_BASE_URL`, `LIVE_LLM_MODEL`, and `LIVE_LLM_PROVIDER` can optionally override that default
 
 `LIVE_LLM_API_KEY` is optional overall. Leave it empty for local Ollama, or provide it for OpenAI, OpenRouter, Together, or a custom authenticated endpoint.
