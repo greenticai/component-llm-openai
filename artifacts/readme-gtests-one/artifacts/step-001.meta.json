@@ -1,7 +1,7 @@
 {
   "step": 1,
   "line_no": 6,
-  "command": "bash -lc greentic-component build --manifest /projects/ai/greentic-ng/component-llm-openai/component.manifest.json --no-flow --json | python3 -c \"import sys, json; data=sys.stdin.read(); start=data.rfind(\\\"{\\\"); print(data[start:]); json.loads(data[start:])\"",
+  "command": "bash -lc CARGO_TERM_COLOR=never greentic-component build --manifest /projects/ai/greentic-ng/component-llm-openai/component.manifest.json --no-flow --json 2>&1 | python3 -c 'import json, pathlib, sys; out = pathlib.Path(sys.argv[1]); lines = sys.stdin.read().splitlines(); start = next(i for i, line in enumerate(lines) if line.lstrip().startswith(\"{\")); payload = \"\\n\".join(lines[start:]); obj = json.loads(payload); out.write_text(json.dumps(obj))' \"/tmp/gtest-9aliFB/build_component.json\"",
   "exit_code": 0,
-  "duration_ms": 6152
+  "duration_ms": 2099
 }
