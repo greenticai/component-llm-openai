@@ -23,8 +23,8 @@ mod component {
     use serde_json::Value;
 
     use super::{
-        DEFAULT_OPERATION, GuestHost, TenantContext, component_descriptor, encode_cbor,
-        handle_invocation, parse_payload,
+        DEFAULT_OPERATION, GuestHost, TenantContext, apply_answers_value_from_bytes,
+        component_descriptor, encode_cbor, handle_invocation, parse_payload,
     };
 
     pub(super) struct Component;
@@ -47,7 +47,7 @@ mod component {
             let output_value = match operation {
                 "qa-spec" => super::qa_spec_value(&parse_payload(&envelope.payload_cbor))?,
                 "apply-answers" | "setup.apply_answers" => {
-                    super::apply_answers_value(&parse_payload(&envelope.payload_cbor))?
+                    apply_answers_value_from_bytes(&envelope.payload_cbor)?
                 }
                 "i18n-keys" => Value::Array(
                     super::qa::i18n_keys()
@@ -237,6 +237,21 @@ struct InvocationPayload {
     #[serde(default)]
     config: Option<LlmOpenaiConfig>,
     input: LlmOpenaiRequest,
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+#[derive(Debug, Clone, Default, Deserialize)]
+struct SetupApplyPayload {
+    #[serde(default)]
+    mode: Option<String>,
+    #[serde(default)]
+    current_config_cbor: Option<Vec<u8>>,
+    #[serde(default)]
+    answers_cbor: Option<Vec<u8>>,
+    #[serde(default)]
+    current_config: Option<Value>,
+    #[serde(default)]
+    answers: Option<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -1089,51 +1104,48 @@ fn qa_spec_value(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn apply_answers_value(
-    payload: &Value,
+fn apply_answers_value_from_bytes(
+    input: &[u8],
 ) -> Result<Value, greentic_interfaces_guest::component_v0_6::node::NodeError> {
-    let raw_mode = payload
-        .get("mode")
-        .and_then(Value::as_str)
-        .unwrap_or("setup");
+    let payload = decode_setup_apply_payload(input)
+        .map_err(|err| ComponentError::new("invalid-input", err).into_node_error())?;
+    apply_answers_value(&payload).map_err(|err| err.into_node_error())
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn decode_setup_apply_payload(input: &[u8]) -> Result<SetupApplyPayload, String> {
+    greentic_types::cbor::canonical::from_cbor(input).or_else(|cbor_err| {
+        serde_json::from_slice(input).map_err(|json_err| {
+            format!("decode setup.apply_answers payload: {cbor_err}; json fallback: {json_err}")
+        })
+    })
+}
+
+#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
+fn apply_answers_value(payload: &SetupApplyPayload) -> Result<Value, ComponentError> {
+    let raw_mode = payload.mode.as_deref().unwrap_or("setup");
     let mode = qa::normalize_mode(raw_mode).ok_or_else(|| {
         ComponentError::new(
             "invalid-qa-mode",
             format!("unsupported QA mode `{raw_mode}`"),
         )
-        .into_node_error()
     })?;
 
-    let current_config = payload
-        .get("current_config_cbor")
-        .and_then(Value::as_array)
-        .map(|values| json_byte_array_to_vec(values))
-        .transpose()
-        .map_err(|err| ComponentError::new("invalid-input", err).into_node_error())?;
-    let answers = payload
-        .get("answers_cbor")
-        .and_then(Value::as_array)
-        .map(|values| json_byte_array_to_vec(values))
-        .transpose()
-        .map_err(|err| ComponentError::new("invalid-input", err).into_node_error())?;
+    let current_value = payload.current_config.clone().or_else(|| {
+        payload
+            .current_config_cbor
+            .as_ref()
+            .map(|bytes| parse_payload(bytes))
+    });
+    let answers_value = payload.answers.clone().or_else(|| {
+        payload
+            .answers_cbor
+            .as_ref()
+            .map(|bytes| parse_payload(bytes))
+    });
 
-    let current_value = current_config.as_ref().map(|bytes| parse_payload(bytes));
-    let answers_value = answers.as_ref().map(|bytes| parse_payload(bytes));
     qa::apply_answers(mode, current_value.as_ref(), answers_value.as_ref())
-        .map_err(|err| ComponentError::new("invalid-qa-answers", err).into_node_error())
-}
-
-#[cfg_attr(any(test, not(target_arch = "wasm32")), allow(dead_code))]
-fn json_byte_array_to_vec(values: &[Value]) -> Result<Vec<u8>, String> {
-    values
-        .iter()
-        .map(|value| {
-            value
-                .as_u64()
-                .and_then(|num| u8::try_from(num).ok())
-                .ok_or_else(|| "expected byte array payload".to_string())
-        })
-        .collect()
+        .map_err(|err| ComponentError::new("invalid-qa-answers", err))
 }
 
 pub fn handle_message(operation: &str, input: &str) -> String {
@@ -1723,5 +1735,55 @@ data: [DONE]\n";
         assert_eq!(deltas, vec!["hello ".to_string(), "world".to_string()]);
         assert_eq!(response.completion, "hello world");
         assert_eq!(response.messages.last().unwrap().content, "hello world");
+    }
+
+    #[test]
+    fn setup_apply_payload_decodes_nested_answers_cbor_bytes() {
+        let answers_cbor = greentic_types::cbor::canonical::to_canonical_cbor(&json!({
+            "provider": "openai",
+            "api_key_secret": "OPENAI_API_KEY"
+        }))
+        .expect("encode answers");
+        let payload_cbor =
+            greentic_types::cbor::canonical::to_canonical_cbor(&ciborium::value::Value::Map(vec![
+                (
+                    ciborium::value::Value::Text("mode".to_string()),
+                    ciborium::value::Value::Text("default".to_string()),
+                ),
+                (
+                    ciborium::value::Value::Text("current_config_cbor".to_string()),
+                    ciborium::value::Value::Null,
+                ),
+                (
+                    ciborium::value::Value::Text("answers_cbor".to_string()),
+                    ciborium::value::Value::Bytes(answers_cbor),
+                ),
+                (
+                    ciborium::value::Value::Text("metadata_cbor".to_string()),
+                    ciborium::value::Value::Null,
+                ),
+            ]))
+            .expect("encode setup payload");
+
+        let payload = decode_setup_apply_payload(&payload_cbor).expect("decode payload");
+        let applied = apply_answers_value(&payload).expect("apply answers");
+
+        assert_eq!(applied["provider"], "openai");
+        assert_eq!(applied["api_key_secret"], "OPENAI_API_KEY");
+    }
+
+    #[test]
+    fn setup_apply_payload_accepts_direct_object_answers_for_compatibility() {
+        let payload = SetupApplyPayload {
+            mode: Some("default".to_string()),
+            answers: Some(json!({
+                "provider": "openai",
+                "api_key_secret": "OPENAI_API_KEY"
+            })),
+            ..Default::default()
+        };
+
+        let applied = apply_answers_value(&payload).expect("apply answers");
+        assert_eq!(applied["api_key_secret"], "OPENAI_API_KEY");
     }
 }
