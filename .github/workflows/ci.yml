@@ -1,102 +1,28 @@
 name: CI
-
 on:
+  workflow_call:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
-env:
-  CI_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
 jobs:
-  bootstrap:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@main
-        with:
-          version: "1.17.8"
-
-  fmt:
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-      - name: Cargo fmt
-        run: cargo fmt --all -- --check
-
-  clippy:
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-      - name: Cargo clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-  test:
-    needs: bootstrap
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
-      - name: Cargo test
-        run: cargo test --workspace --all-targets
-      - name: Cargo check (wasm32-wasip2)
-        run: cargo check --target wasm32-wasip2
+  ci:
+    uses: greenticai/.github/.github/workflows/wasm-component-ci.yml@main
 
   gtests:
-    needs: [fmt, clippy, test]
+    needs: [ci]
     runs-on: ubuntu-latest
+    env:
+      CI_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
+      - uses: Swatinem/rust-cache@v2
       - name: Restore cargo binaries cache
         uses: actions/cache/restore@v4
         with:
@@ -140,8 +66,8 @@ jobs:
           if-no-files-found: ignore
 
   publish:
-    needs: gtests
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/main')
+    needs: [gtests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -151,12 +77,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip2
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          workspaces: |
-            . -> target
+      - uses: Swatinem/rust-cache@v2
       - name: Build WASM (release)
         run: cargo build --target wasm32-wasip2 --release
       - name: Prepare publish artifacts
