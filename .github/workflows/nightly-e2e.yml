@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CI_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   CI_LIVE_LLM_BASE_URL: ${{ secrets.LIVE_LLM_BASE_URL }}
