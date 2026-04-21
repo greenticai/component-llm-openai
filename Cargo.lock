@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "component-llm-openai"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "ciborium",
  "greentic-interfaces-guest",
