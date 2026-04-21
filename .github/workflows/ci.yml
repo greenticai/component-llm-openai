@@ -14,6 +14,9 @@ concurrency:
 
 jobs:
   ci:
+    permissions:
+      contents: read
+      pull-requests: write
     uses: greenticai/.github/.github/workflows/wasm-component-ci.yml@main
 
   gtests:
@@ -68,4 +71,3 @@ jobs:
             artifacts/readme-gtests
             artifacts/negative-gtests
           if-no-files-found: ignore
-
