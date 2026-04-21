@@ -7,7 +7,7 @@ mod qa;
 
 const CHAT_COMPLETIONS_PATH: &str = "/chat/completions";
 const COMPONENT_NAME: &str = "component-llm-openai";
-const COMPONENT_ID: &str = "ai.greentic.component-llm-openai";
+const COMPONENT_ID: &str = "component-llm-openai";
 const COMPONENT_VERSION: &str = "0.1.0";
 const COMPONENT_WORLD: &str = "greentic:component/component@0.6.0";
 const DEFAULT_OPERATION: &str = "handle_message";

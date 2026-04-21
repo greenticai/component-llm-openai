@@ -3,6 +3,8 @@ use component_llm_openai::{
     i18n_fallback,
 };
 use serde_json::json;
+use std::fs;
+use std::path::Path;
 
 #[test]
 fn describe_mentions_world() {
@@ -79,4 +81,25 @@ fn personalized_setup_answers_expand_to_custom_config() {
     assert_eq!(json["base_url"], "https://my-llm.example.com/v1");
     assert_eq!(json["default_model"], "gpt-oss-120b");
     assert_eq!(json["timeout_ms"], 30000);
+}
+
+#[test]
+fn manifest_id_matches_describe_id_and_declares_http_client_capability() {
+    let payload = describe_payload();
+    let describe: serde_json::Value =
+        serde_json::from_str(&payload).expect("describe should be valid json");
+
+    let manifest_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("component.manifest.json");
+    let manifest_text = fs::read_to_string(&manifest_path).expect("read component.manifest.json");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&manifest_text).expect("manifest should be valid json");
+
+    assert_eq!(manifest["id"], "component-llm-openai");
+    assert_eq!(describe["component"]["id"], manifest["id"]);
+    assert_eq!(describe["component"]["name"], manifest["name"]);
+    assert_eq!(manifest["capabilities"]["host"]["http"]["client"], true);
+    assert_eq!(
+        manifest["capabilities"]["host"]["secrets"]["required"],
+        json!([])
+    );
 }
