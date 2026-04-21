@@ -116,7 +116,7 @@
   "default_operation": "handle_message",
   "describe_export": "describe",
   "hashes": {
-    "component_wasm": "blake3:2f2afed12cf7c6efc0ac3428159f4e8c2f53bfed9d408e0627dac2b6e77e72a0"
+    "component_wasm": "blake3:b0b0e26fdf32ef66b02413e70889438a44cca4540c3ca0222dcd4e083e4c5722"
   },
   "id": "component-llm-openai",
   "limits": {
@@ -250,6 +250,6 @@
   "supports": [
     "messaging"
   ],
-  "version": "0.1.0",
+  "version": "0.1.7",
   "world": "greentic:component/component@0.6.0"
 }
