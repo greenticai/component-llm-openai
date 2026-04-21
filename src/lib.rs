@@ -153,6 +153,34 @@ mod qa_exports {
 }
 
 #[cfg(target_arch = "wasm32")]
+mod descriptor_exports {
+    wit_bindgen::generate!({
+        inline: r#"
+            package greentic:component@0.6.0;
+
+            interface component-descriptor {
+                describe: func() -> list<u8>;
+            }
+
+            world component-descriptor-support {
+                export component-descriptor;
+            }
+        "#,
+        world: "component-descriptor-support",
+    });
+
+    pub struct DescriptorSupport;
+
+    impl exports::greentic::component::component_descriptor::Guest for DescriptorSupport {
+        fn describe() -> Vec<u8> {
+            crate::typed_component_describe_cbor().expect("encode typed describe")
+        }
+    }
+
+    export!(DescriptorSupport with_types_in self);
+}
+
+#[cfg(target_arch = "wasm32")]
 greentic_interfaces_guest::export_component_v060!(component::Component);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -623,7 +651,11 @@ pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::Co
             display_name: None,
         },
         provided_capabilities: Vec::new(),
-        required_capabilities: Vec::new(),
+        required_capabilities: vec![
+            "host:http".to_string(),
+            "host:secrets".to_string(),
+            "host:telemetry".to_string(),
+        ],
         metadata: BTreeMap::new(),
         operations: vec![ComponentOperation {
             id: DEFAULT_OPERATION.to_string(),
@@ -641,6 +673,10 @@ pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::Co
         }],
         config_schema,
     }
+}
+
+pub fn typed_component_describe_cbor() -> Result<Vec<u8>, ComponentError> {
+    encode_cbor(&component_describe_ir())
 }
 
 fn operation_input_schema() -> Value {
@@ -962,7 +998,11 @@ fn component_descriptor() -> greentic_interfaces_guest::component_v0_6::node::Co
         name: COMPONENT_NAME.to_string(),
         version: COMPONENT_VERSION.to_string(),
         summary: Some("OpenAI-style LLM component for Greentic".to_string()),
-        capabilities: Vec::new(),
+        capabilities: vec![
+            "host:http".to_string(),
+            "host:secrets".to_string(),
+            "host:telemetry".to_string(),
+        ],
         ops: vec![
             Op {
                 name: DEFAULT_OPERATION.to_string(),

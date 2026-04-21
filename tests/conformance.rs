@@ -1,6 +1,6 @@
 use component_llm_openai::{
-    LlmOpenaiConfig, LlmProvider, describe_payload, fixture_apply_config_cbor, i18n_catalog_value,
-    i18n_fallback,
+    LlmOpenaiConfig, LlmProvider, component_describe_ir, describe_payload,
+    fixture_apply_config_cbor, i18n_catalog_value, i18n_fallback,
 };
 use serde_json::json;
 use std::fs;
@@ -101,5 +101,27 @@ fn manifest_id_matches_describe_id_and_declares_http_client_capability() {
     assert_eq!(
         manifest["capabilities"]["host"]["secrets"]["required"],
         json!([])
+    );
+}
+
+#[test]
+fn typed_describe_declares_http_and_secrets_requirements() {
+    let describe = component_describe_ir();
+
+    assert_eq!(describe.info.id, "component-llm-openai");
+    assert!(
+        describe
+            .required_capabilities
+            .contains(&"host:http".to_string())
+    );
+    assert!(
+        describe
+            .required_capabilities
+            .contains(&"host:secrets".to_string())
+    );
+    assert!(
+        describe
+            .required_capabilities
+            .contains(&"host:telemetry".to_string())
     );
 }
