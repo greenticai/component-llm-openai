@@ -39,7 +39,7 @@ jobs:
             echo "run_live=false" >> "$GITHUB_OUTPUT"
             echo "OPENAI_API_KEY is not configured; skipping nightly live test."
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.94.0
         if: ${{ steps.availability.outputs.run_live == 'true' }}
         with:
           targets: wasm32-wasip2

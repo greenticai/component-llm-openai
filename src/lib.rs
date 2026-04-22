@@ -7,8 +7,8 @@ mod qa;
 
 const CHAT_COMPLETIONS_PATH: &str = "/chat/completions";
 const COMPONENT_NAME: &str = "component-llm-openai";
-const COMPONENT_ID: &str = "ai.greentic.component-llm-openai";
-const COMPONENT_VERSION: &str = "0.1.0";
+const COMPONENT_ID: &str = "component-llm-openai";
+const COMPONENT_VERSION: &str = "0.1.7";
 const COMPONENT_WORLD: &str = "greentic:component/component@0.6.0";
 const DEFAULT_OPERATION: &str = "handle_message";
 
@@ -150,6 +150,34 @@ mod qa_exports {
     }
 
     export!(WizardSupport with_types_in self);
+}
+
+#[cfg(target_arch = "wasm32")]
+mod descriptor_exports {
+    wit_bindgen::generate!({
+        inline: r#"
+            package greentic:component@0.6.0;
+
+            interface component-descriptor {
+                describe: func() -> list<u8>;
+            }
+
+            world component-descriptor-support {
+                export component-descriptor;
+            }
+        "#,
+        world: "component-descriptor-support",
+    });
+
+    pub struct DescriptorSupport;
+
+    impl exports::greentic::component::component_descriptor::Guest for DescriptorSupport {
+        fn describe() -> Vec<u8> {
+            crate::typed_component_describe_cbor().expect("encode typed describe")
+        }
+    }
+
+    export!(DescriptorSupport with_types_in self);
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -623,7 +651,11 @@ pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::Co
             display_name: None,
         },
         provided_capabilities: Vec::new(),
-        required_capabilities: Vec::new(),
+        required_capabilities: vec![
+            "host:http".to_string(),
+            "host:secrets".to_string(),
+            "host:telemetry".to_string(),
+        ],
         metadata: BTreeMap::new(),
         operations: vec![ComponentOperation {
             id: DEFAULT_OPERATION.to_string(),
@@ -643,6 +675,10 @@ pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::Co
     }
 }
 
+pub fn typed_component_describe_cbor() -> Result<Vec<u8>, ComponentError> {
+    encode_cbor(&component_describe_ir())
+}
+
 fn operation_input_schema() -> Value {
     let mut config_schema = component_config_schema_value();
     if let Some(obj) = config_schema.as_object_mut() {
@@ -653,8 +689,61 @@ fn operation_input_schema() -> Value {
     json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "title": "component-llm-openai invocation input",
-        "type": "object",
-        "required": ["input"],
+        "oneOf": [
+            {
+                "type": "object",
+                "required": ["input"],
+                "properties": {
+                    "config": {
+                        "$ref": "#/$defs/ComponentConfig",
+                        "description": "Optional per-invocation component config override for provider, base URL, API key secret reference, default model, and timeout."
+                    },
+                    "input": {
+                        "$ref": "#/$defs/LlmOpenaiRequest",
+                        "description": "Per-invocation input. Any model provided here overrides the component-level default_model."
+                    }
+                },
+                "additionalProperties": false
+            },
+            {
+                "type": "object",
+                "description": "Compatibility shape accepted when runtimes pass the LLM request object directly instead of nesting it under `input`.",
+                "required": ["messages"],
+                "properties": {
+                    "config": {
+                        "$ref": "#/$defs/ComponentConfig",
+                        "description": "Optional per-invocation component config override for provider, base URL, API key secret reference, default model, and timeout."
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "Optional override of the model for this call. Takes precedence over component config default_model."
+                    },
+                    "messages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/ChatMessage"
+                        },
+                        "minItems": 1
+                    },
+                    "temperature": {
+                        "type": "number"
+                    },
+                    "top_p": {
+                        "type": "number"
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "extra": {
+                        "type": "object",
+                        "description": "Provider-specific options merged into the outgoing payload.",
+                        "additionalProperties": true
+                    }
+                },
+                "additionalProperties": false
+            }
+        ],
         "$defs": {
             "ComponentConfig": config_schema,
             "ChatMessage": {
@@ -704,16 +793,6 @@ fn operation_input_schema() -> Value {
                     }
                 },
                 "additionalProperties": false
-            }
-        },
-        "properties": {
-            "config": {
-                "$ref": "#/$defs/ComponentConfig",
-                "description": "Optional per-invocation component config override for provider, base URL, API key secret reference, default model, and timeout."
-            },
-            "input": {
-                "$ref": "#/$defs/LlmOpenaiRequest",
-                "description": "Per-invocation input. Any model provided here overrides the component-level default_model."
             }
         }
     })
@@ -919,7 +998,11 @@ fn component_descriptor() -> greentic_interfaces_guest::component_v0_6::node::Co
         name: COMPONENT_NAME.to_string(),
         version: COMPONENT_VERSION.to_string(),
         summary: Some("OpenAI-style LLM component for Greentic".to_string()),
-        capabilities: Vec::new(),
+        capabilities: vec![
+            "host:http".to_string(),
+            "host:secrets".to_string(),
+            "host:telemetry".to_string(),
+        ],
         ops: vec![
             Op {
                 name: DEFAULT_OPERATION.to_string(),
@@ -1170,16 +1253,74 @@ fn handle_invocation<H: Host>(
     host: &H,
     tenant: Option<&TenantContext>,
 ) -> Result<String, ComponentError> {
-    let payload: InvocationPayload = serde_json::from_str(input).map_err(|err| {
+    let payload = parse_invocation_payload(input)?;
+    let config = payload.config.unwrap_or_default();
+    let response = call_model(host, &config, payload.input, tenant)?;
+    serde_json::to_string(&response)
+        .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
+}
+
+fn parse_invocation_payload(input: &str) -> Result<InvocationPayload, ComponentError> {
+    let value: Value = serde_json::from_str(input).map_err(|err| {
         ComponentError::new(
             "invalid-input",
             format!("failed to parse input JSON: {err}"),
         )
     })?;
-    let config = payload.config.unwrap_or_default();
-    let response = call_model(host, &config, payload.input, tenant)?;
-    serde_json::to_string(&response)
-        .map_err(|err| ComponentError::new("serialization-failed", err.to_string()))
+    invocation_payload_from_value(value)
+}
+
+fn invocation_payload_from_value(value: Value) -> Result<InvocationPayload, ComponentError> {
+    match value {
+        Value::Object(mut obj) => {
+            let config = obj
+                .remove("config")
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(|err| {
+                    ComponentError::new(
+                        "invalid-input",
+                        format!("failed to parse input JSON: {err}"),
+                    )
+                })?;
+
+            if let Some(input_value) = obj.remove("input") {
+                let request = serde_json::from_value(input_value).map_err(|err| {
+                    ComponentError::new(
+                        "invalid-input",
+                        format!("failed to parse input JSON: {err}"),
+                    )
+                })?;
+                return Ok(InvocationPayload {
+                    config,
+                    input: request,
+                });
+            }
+
+            let request = serde_json::from_value(Value::Object(obj)).map_err(|err| {
+                ComponentError::new(
+                    "invalid-input",
+                    format!("failed to parse input JSON: {err}"),
+                )
+            })?;
+            Ok(InvocationPayload {
+                config,
+                input: request,
+            })
+        }
+        other => {
+            let request = serde_json::from_value(other).map_err(|err| {
+                ComponentError::new(
+                    "invalid-input",
+                    format!("failed to parse input JSON: {err}"),
+                )
+            })?;
+            Ok(InvocationPayload {
+                config: None,
+                input: request,
+            })
+        }
+    }
 }
 
 fn call_model<H: Host>(
@@ -1519,6 +1660,11 @@ mod tests {
                 .insert(name.to_string(), value.map(|v| v.to_string()));
             self
         }
+
+        fn with_response(mut self, response: HttpResponse) -> Self {
+            self.responses.push_back(response);
+            self
+        }
     }
 
     impl Host for MockHost {
@@ -1703,6 +1849,94 @@ mod tests {
                 .as_str()
                 .expect("model description");
         assert!(model_description.contains("Takes precedence"));
+        assert_eq!(input_schema["oneOf"][0]["required"][0], "input");
+        assert_eq!(input_schema["oneOf"][1]["required"][0], "messages");
+    }
+
+    #[test]
+    fn parse_invocation_payload_accepts_wrapped_input_shape() {
+        let payload = parse_invocation_payload(
+            &json!({
+                "config": {
+                    "provider": "ollama"
+                },
+                "input": {
+                    "messages": [{
+                        "role": "user",
+                        "content": "hello"
+                    }]
+                }
+            })
+            .to_string(),
+        )
+        .expect("wrapped payload");
+
+        assert_eq!(
+            payload.config.expect("config").provider,
+            LlmProvider::Ollama
+        );
+        assert_eq!(payload.input.messages.len(), 1);
+        assert_eq!(payload.input.messages[0].content, "hello");
+    }
+
+    #[test]
+    fn parse_invocation_payload_accepts_flattened_request_shape() {
+        let payload = parse_invocation_payload(
+            &json!({
+                "messages": [{
+                    "role": "user",
+                    "content": "hello"
+                }]
+            })
+            .to_string(),
+        )
+        .expect("flattened payload");
+
+        assert!(payload.config.is_none());
+        assert_eq!(payload.input.messages.len(), 1);
+        assert_eq!(payload.input.messages[0].content, "hello");
+    }
+
+    #[test]
+    fn handle_invocation_accepts_flattened_request_with_top_level_config() {
+        let host = MockHost::default().with_response(HttpResponse {
+            status: 200,
+            headers: Map::from_iter([(
+                "content-type".to_string(),
+                Value::String("application/json".to_string()),
+            )]),
+            body: Some(
+                json!({
+                    "choices": [{
+                        "message": {
+                            "role": "assistant",
+                            "content": "plan"
+                        }
+                    }]
+                })
+                .to_string(),
+            ),
+        });
+        let output = handle_invocation(
+            DEFAULT_OPERATION,
+            &json!({
+                "config": {
+                    "provider": "ollama",
+                    "default_model": "llama3.2",
+                    "base_url": "http://127.0.0.1:11434/v1"
+                },
+                "messages": [{
+                    "role": "user",
+                    "content": "hello"
+                }]
+            })
+            .to_string(),
+            &host,
+            None,
+        )
+        .expect("flattened invocation succeeds");
+        let response: LlmOpenaiResponse = serde_json::from_str(&output).expect("response json");
+        assert_eq!(response.completion, "plan");
     }
 
     #[test]
