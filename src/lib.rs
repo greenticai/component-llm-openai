@@ -672,6 +672,7 @@ pub fn component_describe_ir() -> greentic_types::schemas::component::v0_6_0::Co
             schema_hash: operation_hash,
         }],
         config_schema,
+        outcomes: Vec::new(),
     }
 }
 
