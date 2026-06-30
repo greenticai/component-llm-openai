@@ -1,35 +1,60 @@
 [package]
 name = "component-llm-openai"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 rust-version = "1.95"
 description = "Greentic component component-llm-openai"
 repository = "https://github.com/greenticai/component-llm-openai"
-authors = ["maarten"]
+authors = [
+    "maarten",
+]
 build = "build.rs"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = [
+    "cdylib",
+    "rlib",
+]
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-greentic-types = { version = "0.5" }
 ciborium = "0.2"
 
+[dependencies.serde]
+version = "1"
+features = [
+    "derive",
+]
+
+[dependencies.greentic-types]
+version = ">=1.1.0-dev, <1.2.0-0"
+
 [dev-dependencies]
-reqwest = { version = "0.13", features = ["blocking", "json", "rustls"] }
 serde_json = "1"
+
+[dev-dependencies.reqwest]
+version = "0.13"
+features = [
+    "blocking",
+    "json",
+    "rustls",
+]
 
 [build-dependencies]
-greentic-types = { version = "0.5" }
 serde_json = "1"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-greentic-interfaces-guest = { version = "0.5", default-features = false, features = [
+[build-dependencies.greentic-types]
+version = ">=1.1.0-dev, <1.2.0-0"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies]
+wit-bindgen = "0.57"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.greentic-interfaces-guest]
+version = ">=1.1.0-dev, <1.2.0-0"
+default-features = false
+features = [
     "component-v0-6",
     "http-client",
     "secrets",
-] }
-wit-bindgen = "0.57"
+]
