@@ -49,7 +49,7 @@ jobs:
           version: "1.17.8"
       - name: Install Greentic CLIs
         run: |
-          cargo binstall -y cargo-component greentic-dev greentic-flow greentic-pack greentic-integration-tester --locked
+          cargo binstall -y cargo-component greentic-dev greentic-flow greentic-pack greentic-integration-tester --locked --force
           cargo binstall -y greentic-component --force --locked
       - name: Save cargo binaries cache
         if: always()
